@@ -1,0 +1,62 @@
+import { authentication } from 'wix-members-backend';
+import {eMail_2} from 'backend/emails'
+import wixData from 'wix-data';
+
+export async function myApproveByEmailFunction(email) {
+	let member = {};
+
+	//Search member
+	await wixData.query("Users")
+	.eq("email", email)
+	.find()
+	.then( async (results) => {
+		if(results.items.length > 0) {
+			member = results.items[0];
+			//Update member
+			member.active = true;
+			member.suiteId = await random();
+			wixData.update("Users", member);
+		}
+	} )
+	.catch( (err) => {
+		let errorMsg = err;
+	} );
+
+	//console.log(member)
+
+	//Active Member
+  	await authentication.approveByEmail(member.email)
+    .then((sessionToken) => {
+      //console.log(sessionToken);
+    })
+    .catch((error) => {
+      console.log(error)
+    });
+
+	await eMail_2(member);
+}
+
+export function random() {
+    //variable
+    let min = 1000;
+    let max = 9999;
+    let aLetras = new Array('A', 'B');
+    let cLetra = aLetras[Math.floor(Math.random()*aLetras.length)];
+    let number = Math.floor((Math.random() * (max - min + 1)) + min);
+    //suite - number of lenght 4 numbers and letters only A-B
+    let suite = number+cLetra;
+
+    wixData.query("Users")
+    .eq("suite", suite)
+    .find()
+    .then( (results) => {
+        if(results.items.length > 0) {
+            random();
+        }
+    } )
+    .catch( (err) => {
+        let errorMsg = err;
+    } );
+    console.log(suite)
+    return suite;
+}

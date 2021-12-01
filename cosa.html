@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript">
+        window.AmbitConfig = {
+            webChatBaseUrl: 'https://wc.ambithub.com/v2/latest',
+            botBaseUrl: 'https://vetchat.ambithub.com',
+            showLauncher: false,
+            userData: {
+                currentSite: 'corovets',
+            },
+            images: {
+                header: '', //Add bot logo here
+                chatAvatar: '', // Add bot logo here
+            },
+            theme: {
+                accentColor: '', //change colour to match your website
+                hoverColor: '#d68aab',
+
+                userMessageBubbleColor: '', //change colour to match your website
+                userMessageFontColor: '#ffffff',
+
+                botMessageBubbleColor: '#f2f2f2',
+                botMessageFontColor: 'rgba(0,0,0,0.54)'
+            },
+        };
+
+        (function(t, i) {
+            var n = i.createElement("script");
+            n.src = t.AmbitConfig.webChatBaseUrl + "/js/init.js";
+            n.async = true;
+            i.head.appendChild(n);
+            t.Ambit = function() {
+                t.Ambit.q = t.Ambit.q || [];
+                t.Ambit.q.push(arguments)
+            }
+        })(window, document);
+
+
+        function toggleSophie() {
+            window.Ambit('toggleChatPanelVisible');
+        }
+
+        var documentTitle = document.title,
+            interval;
+
+        window.Ambit("onUnreadMessages", function(count) {
+            var notificationsCount = document.getElementById('Sophie_Notifications');
+
+            if (count > 0) {
+                // Update and show notifications in the launcher
+                notificationsCount.textContent = count;
+                notificationsCount.className = 'visible';
+                // Update page title
+                document.title = 'You have ' + count + ' unread message(s)!';
+
+                // Alternate page title
+                if (interval) {
+                    clearInterval(interval);
+                }
+                interval = setInterval(function() {
+                    document.title = document.title === documentTitle ? 'You have ' + count + ' unread message(s)!' : documentTitle;
+                }, 1000)
+            } else {
+                // Clear and hide notifications in the launcher
+                notificationsCount.textContent = '';
+                notificationsCount.className = '';
+                // Reset the page title
+                document.title = documentTitle;
+                clearInterval(interval)
+            }
+        });
+    </script>
+
+</head>
+
+<body>
+    <div id="Sophie" onclick="toggleSophie();">
+        <div id="Sophie_Notifications"></div>
+        <img src="https://wc.ambithub.com/static/img/Vetchat_Sophie_blue.png" style="position: fixed;top: 400px;right: 10px;width:100px;height:100px;"/>
+        <!--ADD BOT LOGO IN src Above ^ -->
+    </div>
+</body>
+
+</html>
+
+<!--=========================================================================-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript">
+        window.AmbitConfig = {
+            webChatBaseUrl: 'https://wc.ambithub.com/v2/latest',
+            botBaseUrl: 'https://vetchat.ambithub.com',
+            showLauncher: false,
+            userData: {
+                currentSite: 'corovets',
+            },
+            images: {
+                header: 'https://wc.ambithub.com/static/img/Vetchat_Sophie_blue.png', //Add bot logo here
+                chatAvatar: 'https://wc.ambithub.com/static/img/Vetchat_Sophie_blue.png', // Add bot logo here
+            },
+            theme: {
+                accentColor: '#186739', //change colour to match your website
+                hoverColor: '#d68aab',
+
+                userMessageBubbleColor: '#186739', //change colour to match your website
+                userMessageFontColor: '#ffffff',
+
+                botMessageBubbleColor: '#f2f2f2',
+                botMessageFontColor: '#000000'
+            },
+        };
+
+        (function(t, i) {
+            var n = i.createElement("script");
+            n.src = t.AmbitConfig.webChatBaseUrl + "/js/init.js";
+            n.async = true;
+            i.head.appendChild(n);
+            t.Ambit = function() {
+                t.Ambit.q = t.Ambit.q || [];
+                t.Ambit.q.push(arguments)
+            }
+        })(window, document);
+
+
+        function toggleSophie() {
+            window.Ambit('toggleChatPanelVisible');
+        }
+
+        var documentTitle = document.title,
+            interval;
+
+        window.Ambit("onUnreadMessages", function(count) {
+            var notificationsCount = document.getElementById('Sophie_Notifications');
+
+            if (count > 0) {
+                // Update and show notifications in the launcher
+                notificationsCount.textContent = count;
+                notificationsCount.className = 'visible';
+                // Update page title
+                document.title = 'You have ' + count + ' unread message(s)!';
+
+                // Alternate page title
+                if (interval) {
+                    clearInterval(interval);
+                }
+                interval = setInterval(function() {
+                    document.title = document.title === documentTitle ? 'You have ' + count + ' unread message(s)!' : documentTitle;
+                }, 1000)
+            } else {
+                // Clear and hide notifications in the launcher
+                notificationsCount.textContent = '';
+                notificationsCount.className = '';
+                // Reset the page title
+                document.title = documentTitle;
+                clearInterval(interval)
+            }
+        });
+    </script>
+
+</head>
+
+<body>
+    <div id="Sophie" onclick="toggleSophie();">
+        <div id="Sophie_Notifications"></div>
+        <img src="https://wc.ambithub.com/static/img/Vetchat_Sophie_blue.png" style="position: absolute; bottom: 0; right: 0;width:100px;height:100px;"/>
+        <!--ADD BOT LOGO IN src Above ^ -->
+    </div>
+</body>
+
+</html>

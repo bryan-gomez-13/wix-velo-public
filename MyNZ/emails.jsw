@@ -1,0 +1,48 @@
+import { triggeredEmails } from 'wix-crm-backend';
+
+//Email 1
+export function eMail_1(email_client) {
+    const emailId = "Email_1";
+    //Email of the owner
+    const memberId = "2814c9fd-f36c-49fa-a511-ef38a5291d31";
+    const options = {
+        variables: {
+            memberEmail: email_client
+        }
+    }
+
+    return triggeredEmails.emailMember(emailId, memberId, options)
+        .then(() => {
+            console.log("Email was sent to member");
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+//Email 3
+export function eMail_2(member) {
+    const emailId3 = "Email_3";
+    //Email of the owner
+    const memberId = member.idPrivateMember;
+    const options = {
+        variables: {
+            nameCustomer: member.fullName,
+            SuiteID: member.suiteId,
+            Name: member.fullName,
+            Address1: member.completeAddress.formatted,
+            Address2: member.forwardingAddress.formatted,
+            City:  member.forwardingAddress.city,
+            Code: member.forwardingAddress.postalCode,
+            Country: member.forwardingAddress.country
+        }
+    }
+
+    return triggeredEmails.emailMember(emailId3, memberId, options)
+        .then(() => {
+            console.log("Email was sent to member");
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

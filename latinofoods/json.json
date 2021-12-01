@@ -1,0 +1,126 @@
+{
+    "_id": "006a122a-7f27-433c-a593-b575f3fa3e54",
+    "_updatedDate": "2021-10-25T19:42:05.856Z",
+    "cartId": "d2dd966a-7cab-408e-8963-f1d440653eca",
+    "channelInfo": {
+      "type": "WEB"
+    },
+    "enteredBy": {
+      "id": "453b4b61-545f-44ff-95e8-22f023e4fd8c",
+      "identityType": "CONTACT"
+    },
+    "refunds": [],
+    "billingInfo": {
+      "address": {
+        "formatted": "Yourweb\n26 Morningside Drive\nAuckland, Auckland 1025\nNew Zealand\n20405124",
+        "city": "Auckland",
+        "country": "NZL",
+        "addressLine": "26 Morningside Drive",
+        "postalCode": "1025",
+        "subdivision": "AUK"
+      },
+      "firstName": "Testing",
+      "lastName": "Yourweb",
+      "email": "bryan@entusitioweb.com",
+      "phone": "20405124",
+      "company": "Yourweb",
+      "paymentMethod": "offline",
+      "paymentGatewayTransactionId": "6b865ecb-0f4d-401b-a28d-5a2e1468b79a"
+    },
+    "buyerInfo": {
+      "id": "453b4b61-545f-44ff-95e8-22f023e4fd8c",
+      "type": "CONTACT",
+      "identityType": "CONTACT",
+      "firstName": "Testing",
+      "lastName": "Yourweb",
+      "phone": "20405124",
+      "email": "bryan@entusitioweb.com",
+      "contactId": "453b4b61-545f-44ff-95e8-22f023e4fd8c"
+    },
+    "_dateCreated": "2021-10-25T19:42:04.845Z",
+    "currency": "NZD",
+    "fulfillmentStatus": "NOT_FULFILLED",
+    "archived": false,
+    "activities": [
+      {
+        "type": "ORDER_PLACED",
+        "timestamp": "2021-10-25T19:42:04.845Z"
+      }
+    ],
+    "number": 10058,
+    "paymentStatus": "NOT_PAID",
+    "shippingInfo": {
+      "deliveryOption": "Free Shipping",
+      "shippingRegion": "Domestic",
+      "shipmentDetails": {
+        "address": {
+          "formatted": "Yourweb\n26 Morningside Drive\nAuckland, Auckland 1025\nNew Zealand\n20405124",
+          "city": "Auckland",
+          "country": "NZL",
+          "addressLine": "26 Morningside Drive",
+          "postalCode": "1025",
+          "subdivision": "AUK"
+        },
+        "firstName": "Testing",
+        "lastName": "Yourweb",
+        "email": "bryan@entusitioweb.com",
+        "phone": "20405124",
+        "company": "Yourweb",
+        "tax": 0,
+        "discount": 0,
+        "priceData": {
+          "price": 0,
+          "taxIncludedInPrice": false
+        }
+      },
+      "pickupDetails": null
+    },
+    "lineItems": [
+      {
+        "index": 1,
+        "quantity": 8,
+        "price": 95,
+        "name": "copy of I'm a product 2",
+        "translatedName": "copy of I'm a product 2",
+        "productId": "37abc8e2-be92-5e23-f5aa-c3698f76674d",
+        "totalPrice": 760,
+        "lineItemType": "PHYSICAL",
+        "options": [],
+        "customTextFields": [],
+        "weight": 0.5,
+        "mediaItem": {
+          "id": "a9ff3b_368c28dfbd9a4a47a7db85fe6c956996.jpg",
+          "src": "wix:image://v1/a9ff3b_368c28dfbd9a4a47a7db85fe6c956996.jpg/file.jpg#originWidth=1000&originHeight=1000",
+          "type": "IMAGE"
+        },
+        "sku": "FRZN-YK-1000B",
+        "variantId": "00000000-0000-0000-0000-000000000000",
+        "discount": 0,
+        "tax": 0,
+        "taxIncludedInPrice": false,
+        "priceData": {
+          "price": 95,
+          "totalPrice": 760,
+          "taxIncludedInPrice": false
+        },
+        "refundedQuantity": 0
+      }
+    ],
+    "totals": {
+      "discount": 0,
+      "quantity": 8,
+      "shipping": 0,
+      "subtotal": 760,
+      "tax": 0,
+      "total": 760,
+      "weight": 4
+    },
+    "weightUnit": "KG",
+    "customField": {
+      "value": "Morningside",
+      "title": "SUBURB",
+      "translatedTitle": "SUBURB"
+    },
+    "fulfillments": [],
+    "discount": null
+  }
