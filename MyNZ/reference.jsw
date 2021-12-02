@@ -1,0 +1,129 @@
+import wixData from 'wix-data';
+
+let idCurrentUser;
+let dataInsertHistory = []
+let options = {
+    "suppressAuth": true,
+    "suppressHooks": true
+};
+
+export async function getIdUser(emailUser) {
+    let results = await wixData.query("Users").eq("email", emailUser).find();
+    return results.items[0]._id
+}
+
+//Function that get data products of customer
+
+export async function getProductsHistory(emailCustomer) {
+    idCurrentUser = await getIdUser(emailCustomer);
+    let toInsert = await wixData.queryReferenced("Users", idCurrentUser, "myProducts")
+    return toInsert.items.map((items) => {
+        return {
+            "productsDetails": items.productsDetails,
+            "quantity": items.quantity,
+            "price": items.price,
+            "dimensions": items.dimensions,
+            "volume": items.volume,
+            "packageArrival": items.packageArrival,
+            "shippingOption": items.shippingOption,
+            "supplier": items.supplier,
+            "weight": items.weight,
+            "taxesName": items.taxesName,
+            "taxesRate": items.taxesRate,
+            "taxesCode": items.taxesCode,
+            "invoiceReference": items.invoiceReference,
+            "nzLocalShippingReference": items.nzLocalShippingReference,
+            "brand": items.brand,
+            "unitPrice": items.unitPrice,
+            "chargeableWeight": items.chargeableWeight,
+            "user": items.user,
+            "totalPrice": items.totalPrice,
+            "notesToCustomer": items.notesToCustomer,
+            "notification": items.notification
+        }
+    })
+}
+
+//function thah insert all products in the history collection
+export async function insertProductsHistory(emailCustomer) {
+    let dataInsert = await getProductsHistory(emailCustomer)
+    for (let i = 0; i < dataInsert.length; i++) {
+        dataInsertHistory.push({
+            "productsDetails": dataInsert[i].productsDetails,
+            "quantity": dataInsert[i].quantity,
+            "price": dataInsert[i].price,
+            "dimensions": dataInsert[i].dimensions,
+            "volume": dataInsert[i].volume,
+            "packageArrival": dataInsert[i].packageArrival,
+            "shippingOption": dataInsert[i].shippingOption,
+            "supplier": dataInsert[i].supplier,
+            "weight": dataInsert[i].weight,
+            "taxesName": dataInsert[i].taxesName,
+            "taxesRate": dataInsert[i].taxesRate,
+            "taxesCode": dataInsert[i].taxesCode,
+            "invoiceReference": dataInsert[i].invoiceReference,
+            "nzLocalShippingReference": dataInsert[i].nzLocalShippingReference,
+            "brand": dataInsert[i].brand,
+            "unitPrice": dataInsert[i].unitPrice,
+            "chargeableWeight": dataInsert[i].chargeableWeight,
+            "user": dataInsert[i].user,
+            "totalPrice": dataInsert[i].totalPrice,
+            "notesToCustomer": dataInsert[i].notesToCustomer,
+            "notification": dataInsert[i].notification
+        })
+    }
+
+    for (let i = 0; i < dataInsertHistory.length; i++) {
+        if (dataInsertHistory[i].invoiceReference != dataInsert[i].invoiceReference) {
+            wixData.bulkInsert("History", [dataInsertHistory[i]], options)
+                .then((results) => {
+                    //console.log(results);
+                })
+                .catch((error) => {
+                    console.log(error);
+                })
+        }
+    }
+
+}
+
+export async function insertReference(emailCustomer) {
+    wixData.query("History")
+        .eq("user", emailCustomer)
+        .find()
+        .then((results) => {
+            let items = results.items;
+            for (let i = 0; i < items.length; i++) {
+                wixData.insertReference("History", "users", items[i]._id, idCurrentUser, options)
+                    .then(() => {
+                        console.log("All Good");
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    })
+            }
+            //deleteOrders(emailCustomer);
+        });
+}
+
+//function that delete orders of the products collection
+export async function deleteOrders(emailCustomer) {
+    wixData.query("Products")
+        .eq("user", emailCustomer)
+        .find()
+        .then((results) => {
+            let items = results.items;
+            for (let i = 0; i < items.length; i++) {
+                wixData.bulkRemove("Products", [items[i]._id], options)
+                    .then((results) => {
+                        console.log("Deleted!");
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    })
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+}

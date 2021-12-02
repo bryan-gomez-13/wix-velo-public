@@ -1,26 +1,31 @@
 import { triggeredEmails } from 'wix-crm-backend';
+import wixUsersBackend from 'wix-users-backend';
 
-//Email 1
+//Email 1 - Upon receipt of new membership application | email to admin (AUTO)
 export function eMail_1(email_client) {
     const emailId = "Email_1";
     //Email of the owner
-    const memberId = "2814c9fd-f36c-49fa-a511-ef38a5291d31";
+    const memberYourweb = "6f5e2b7c-6c1c-4e01-b3f6-f98303ef91f8";
+    const memberYourweb2 = "f8953e50-9c10-4d31-b597-526a50d587be";
+    const manager = "36dfd681-dcd8-4b88-bb53-9c313d4bfc8c";
+    const cs = "bb267783-8633-4b06-8687-8e18f840f62b";
     const options = {
         variables: {
             memberEmail: email_client
         }
     }
 
-    return triggeredEmails.emailMember(emailId, memberId, options)
+    triggeredEmails.emailMember(emailId, memberYourweb, options)
         .then(() => {
-            console.log("Email was sent to member");
+            //triggeredEmails.emailMember(emailId, cs, options);
+            console.log("Email_1 Done")
         })
         .catch((error) => {
             console.error(error);
         });
 }
 
-//Email 3
+//Email 4 - Upon receipt of membership payment, admin to approve customer's membership: And an  auto email to customer - and giving them link to access for the first time.  
 export function eMail_2(member) {
     const emailId3 = "Email_3";
     //Email of the owner
@@ -32,17 +37,110 @@ export function eMail_2(member) {
             Name: member.fullName,
             Address1: member.completeAddress.formatted,
             Address2: member.forwardingAddress.formatted,
-            City:  member.forwardingAddress.city,
+            City: member.forwardingAddress.city,
             Code: member.forwardingAddress.postalCode,
-            Country: member.forwardingAddress.country
+            Country: member.forwardingAddress.country,
+            endPlan: member.endPlan
         }
     }
 
     return triggeredEmails.emailMember(emailId3, memberId, options)
         .then(() => {
-            console.log("Email was sent to member");
+            console.log("Email 4 Done");
         })
         .catch((error) => {
             console.error(error);
         });
+}
+
+//Email 2 - Upon submission of membership application | email confirmation to applicant (AUTO)
+export function eMail_4(json) {
+    const emailId = "Email_4";
+    //Email of the owner
+    const member = json.idPrivateMember;
+    const options = {
+        variables: {
+            fullName: json.fullName
+        }
+    }
+
+    triggeredEmails.emailMember(emailId, member, options)
+        .then(() => {
+            console.log("Email 2 Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+//Email 5 - Upon warehouse entering details of new package, email to customer  (AUTO)
+export function eMail_5(json) {
+    const emailId = "Email_5";
+    //Email of the owner
+    const member = json.idPrivateMember;
+    const options = {
+        variables: {
+            fullName: json.fullName,
+            supplier: json.supplier,
+            suiteId: json.suiteId
+        }
+    }
+    console.log(options)
+    console.log(json)
+
+    triggeredEmails.emailMember(emailId, member, options)
+        .then(() => {
+            console.log("Email 5 Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+//Function that send email to user when the data is update
+// Email 6 - Upon customer clicking "ship now" emails to warehouse  cs@mynz.shop  (AUTO) and copy customer 
+export async function sendEmailInvoice(member) {
+    const emailId = 'Email_6'
+    const memberIdWarehouse = "6f5e2b7c-6c1c-4e01-b3f6-f98303ef91f8";
+    const memberId = wixUsersBackend.currentUser.id;
+    const options = {
+        variables: {
+            memberName: member.memberName,
+            suiteNumber: member.suiteNumber,
+            shippingOption: member.shippingOption
+        }
+    }
+    triggeredEmails.emailMember(emailId, memberId, options)
+        .then((results) => {
+            triggeredEmails.emailMember(emailId, memberIdWarehouse, options);
+            console.log("Email 6 Done");
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+
+}
+
+// Email 8 - Upon receipt of payment, admin logs back in and add tracking number, and tick "shipped" (AUTO) copy and sends reply to cs@mynz.shop 
+export async function sendEmailDespatch(member) {
+    const emailId = 'Email_8';
+    const memberId = member.memberId
+    const memberIdWarehouse = "6f5e2b7c-6c1c-4e01-b3f6-f98303ef91f8";
+    const options = {
+        variables: {
+            memberName: member.memberName,
+            suiteNumber: member.suiteNumber,
+            trackingDetails: member.trackInfo
+        }
+    }
+
+    triggeredEmails.emailMember(emailId, memberId, options)
+        .then((results) => {
+            triggeredEmails.emailMember(emailId, memberIdWarehouse, options);
+            console.log("Email 8 Done");
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+
 }

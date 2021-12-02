@@ -12,7 +12,9 @@ let daysF;
 let diff;
 
 $w.onReady(function () {
-
+    setInterval(() => {
+        $w('#email').enable();
+    }, 3000)
 });
 
 export function searchUser(event) {
@@ -47,7 +49,7 @@ export function searchUser(event) {
                 $w('#forwardingA').value = itemsForwading.formatted
                 dateFrom = todayDate.getDate()
                 diff = itemsDate - dateFrom + todayDate.getDate();
-                console.log(diff);
+                //console.log(diff);
                 $w('#days').value = diff.toString();
 
                
@@ -80,7 +82,7 @@ function clear() {
 
 //================================================== ACTIVATE MEMBER ==================================================
 export async function activateMember() {
-    console.log("Activate Member")
+    //console.log("Activate Member")
     let email = $w('#email').value
 
     await wixData.query("Users")
@@ -111,7 +113,7 @@ export async function activateMember() {
 export async function x() {
     let email = $w('#email').value;
 
-    console.log("here");
+    //console.log("here");
     let options = {
         "suppressAuth": true,
         "suppressHooks": true
@@ -124,7 +126,7 @@ export async function x() {
             if (results.items.length > 0) {
                 let items = results.items;
                 let firstItem = items[0];
-                console.log(items)
+                //console.log(items)
             } else {
                 // handle case where no matching items found
             }
@@ -134,7 +136,7 @@ export async function x() {
             let code = error.code;
             console.log(errorMsg, code)
         });
-    console.log("here2");
+    //console.log("here2");
 }
 
 function bActivate(email) {

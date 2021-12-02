@@ -1,9 +1,6 @@
 import { eMail_5 } from 'backend/emails.jsw';
-import { myApproveByEmailFunction } from 'backend/admin'
-import { getIdUser, dataIdMembers } from 'backend/querys.jsw';
 import wixData from 'wix-data';
-import wixUsers from 'wix-users';
-var Member;
+var emailMember;
 
 $w.onReady(async function () {
     methods();
@@ -20,14 +17,14 @@ function methods() {
 //================================================== ADD PRODUCT ==================================================
 // GET USER
 export function getMember() {
-    wixData.query("Users").eq("email", $w('#email').value).or(wixData.query("Users").eq('suiteId', $w('#email').value))
+    wixData.query("Users").eq("email", $w('#email').value).eq('active',true).or(wixData.query("Users").eq('suiteId', $w('#email').value).eq('active',true))
         .find()
         .then((results) => {
             if (results.items.length > 0) {
                 //ADD BOX ITEMS
                 $w('#functions').expand();
-                console.log(results.items[0]);
-                console.log(results.items[0].mobile);
+                //console.log(results.items[0]);
+                //console.log(results.items[0].mobile);
                 showMember(results.items[0]);
             } else {
                 $w('#functions').collapse();
@@ -44,7 +41,7 @@ function showMember(member) {
     $w('#name').text = "Name: " + member.fullName + " " + member.surname;
     $w('#mail').text = "Email:" + member.email;
     $w('#suite').text = "Suite:" + member.suiteId;
-    Member = member;
+    emailMember = member.email;
 }
 
 //NORMAL
@@ -59,7 +56,7 @@ async function saveItems() {
     //console.log(Member);
     //let validate = await isValidForm();
     //if (validate) {
-    console.log("save")
+    //console.log("save")
     $w('#Bad').hide();
 
     $w("#Products").save();
@@ -69,7 +66,7 @@ async function saveItems() {
     let W = $w('#W').value;
     let H = $w('#H').value;
     let volume = parseFloat(((parseFloat(L) * parseFloat(W) * parseFloat(H)) / 4500).toFixed(2));
-    console.log(volume);
+    //console.log(volume);
 
     //Chargeable Weight
     let chargeableWeight = 0;
@@ -84,7 +81,7 @@ async function saveItems() {
     let unitPrice = parseFloat($w('#IPrice').value);
 
     let json = {
-        "user": $w('#email').value,
+        "user": emailMember,
         "dimensions": $w('#L').value + "x" + $w('#W').value + "x" + $w('#H').value,
         "volume": volume,
         "shippingOption": "Pending",
@@ -94,7 +91,7 @@ async function saveItems() {
         "packageArrival": $w('#IPArrival').value.toDateString(),
         "chargeableWeight": chargeableWeight,
         "unitPrice": unitPrice,
-        "totalPrice": totalPrice,
+        "totalPrice": totalPrice.toFixed(2),
         "notification": false
     }
     //console.log(json)
@@ -103,21 +100,21 @@ async function saveItems() {
 
     let idProduct = $w("#Products").getCurrentItem()._id
 
-    console.log($w("#Products").getCurrentItem());
+    //console.log($w("#Products").getCurrentItem());
     //console.log(idProduct);
 
     wixData.query("Users")
-        .eq("email", $w('#email').value)
+        .eq("email", emailMember)
         .find()
         .then((results) => {
             if (results.items.length > 0) {
                 let id = results.items[0]._id; //see item below
-                console.log(results.items[0])
-                console.log(id)
-                console.log(idProduct)
+                //console.log(results.items[0])
+                //console.log(id)
+                //console.log(idProduct)
                 wixData.insertReference("Users", "myProducts", id, idProduct)
                     .then(() => {
-                        console.log("Reference inserted 1");
+                        //console.log("Reference inserted 1");
                     })
                     .catch((error) => {
                         console.log(error);
@@ -137,12 +134,10 @@ async function saveItems() {
 }
 
 function clear() {
-    $w('#IName').value = "";
     $w('#IQuantity').value = "";
     $w('#IPrice').value = "";
     $w('#IWeight').value = "";
     $w('#IPDetail').value = "";
-    $w('#IDescription').value = "";
     $w('#notesToCustomer').value = "";
     $w('#IPArrival').resetValidityIndication();
     $w('#L').value = "";
@@ -181,9 +176,9 @@ function clear() {
 
 // ======================= EMAIL_5 - NEW PACKAGE =======================
 async function newPackage() {
-    let email = $w('#email').value;
+    //console.log(emailMember)
     $w('#alert').collapse();
-    await wixData.query("Products").eq('user', email).eq('notification', false)
+    await wixData.query("Products").eq('user', emailMember).eq('notification', false)
         .find()
         .then(async (results) => {
             if (results.items.length > 0) {
@@ -204,16 +199,16 @@ async function newPackage() {
                     }
                 }
 
-                console.log(supplier);
+                //console.log(supplier);
 
-                await wixData.query('Users').eq('email', email).find().then(async (result) => {
+                await wixData.query('Users').eq('email', emailMember).find().then(async (result) => {
                     let json = {
                         idPrivateMember: result.items[0].idPrivateMember,
                         fullName: result.items[0].fullName,
                         supplier: supplier,
                         suiteId: result.items[0].suiteId
                     }
-                    console.log(json)
+                    //console.log(json)
                     await eMail_5(json)
                 })
                 $w('#alert').text = "Done";

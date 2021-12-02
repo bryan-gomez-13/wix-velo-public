@@ -1,0 +1,248 @@
+import { invoices } from 'wix-billing-backend';
+import wixData from 'wix-data';
+import wixUsersBackend from 'wix-users-backend';
+
+//Date invoices
+const now = new Date()
+const dueDate = new Date()
+dueDate.setDate(now.getDate() + 30)
+let customer;
+let dataCustomer;
+let lineItems = [];
+let metadata;
+let dates;
+let dataInvoice;
+let dataCreateInvoice;
+let myItemsData = [];
+let numberMobile;
+let address;
+let address2;
+let addressStreet;
+let addressStreet2;
+let dataLineItems;
+let idCurrentUser;
+let toUpdate;
+
+//Data current userlet idCurrentUser;
+
+//Function that gets the id of the user using the email
+export async function getIdUser(userEmail) {
+    let results = await wixData.query("Users").eq("email", userEmail).find();
+    return results.items[0]._id
+}
+
+//Function that gets the data products of user using id user
+export async function getDataOrders() {
+    let userEmail = await wixUsersBackend.currentUser.getEmail();
+    let idUser = await getIdUser( userEmail);
+    //console.log(idUser)
+    let results = await wixData.queryReferenced("Users", idUser, "myProducts")
+    return results.items.filter((orders) => {
+        if (orders.shippingOption === "Pending") {
+            return {
+                "quantity": orders.quantity,
+                "brand": orders.brand,
+                "unitPrice": orders.unitPrice,
+                "productsDetails": orders.productsDetails,
+                "notesToCustomer": orders.notesToCustomer,
+                "invoiceReference": orders.invoiceReference,
+                "weight": orders.weight,
+                "chargeableWeight": orders.chargeableWeight,
+                "totalPrice": orders.totalPrice
+            }
+        }
+    });
+
+}
+
+//Function thats gets the data for the invoices with the id user
+export async function querydataInvoices(idUser) {
+    let results = await wixData.query("Users").eq("_id", idUser).find();
+    return results.items.map((data) => {
+        return {
+            "_id": data._id,
+            "email": data.email,
+            "completeAddress": data.completeAddress,
+            "fullName": data.fullName,
+            "surname": data.surname,
+            "mobileNumber": data.mobileNumber,
+            "forwardingAddress": data.forwardingAddress
+        }
+    });
+}
+
+//Function that get data products and after update data with the shipping option
+export async function updateR(shippingOption) {
+    let userEmail = await wixUsersBackend.currentUser.getEmail();
+    idCurrentUser = await getIdUser(userEmail);
+    //console.log(idCurrentUser + "Soy el id");
+    wixData.queryReferenced("Users", idCurrentUser, "myProducts")
+        .then((update) => {
+            let results = update.items
+            for (let i = 0; i < results.length; i++) {
+                if (results[i].shippingOption === "Pending") {
+                    results[i].shippingOption = shippingOption;
+                }
+            }
+            toUpdate = results;
+            for (let i = 0; i < toUpdate.length; i++) {
+                wixData.update("Products", toUpdate[i])
+                    .then((results) => {
+
+                    })
+                    .catch((error) => {
+                        console.log(error)
+                    })
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+        .finally(() => {
+
+        })
+
+    wixData.query("Users")
+        .eq("_id", idCurrentUser)
+        .find()
+        .then((results) => {
+            let items = results.items[0];
+            items.readyToDespatch = true;
+            wixData.save("Users", items)
+                .then((results) => {
+
+                })
+                .catch((error) => {
+                    console.log(error);
+                })
+        }).catch((error) => {
+            console.log(error);
+        })
+}
+
+//Function that receives the invoice data and calls the createinovice method
+export async function generateInvoice() {
+    let userEmail = await wixUsersBackend.currentUser.getEmail();
+    idCurrentUser = await getIdUser( userEmail );
+    // user information
+    dataInvoice = await querydataInvoices(idCurrentUser);
+    dataLineItems = await getDataOrders();
+    dataCreateInvoice = dataInvoice;
+    dataCustomer = await dataInvoice[0];
+    //console.log(dataLineItems);
+    
+    for (let i = 0; i < dataLineItems.length; i++) {
+        lineItems.push({ "name": dataLineItems[i].productsDetails, "description": dataLineItems[i].brand, "price": dataLineItems[i].unitPrice, "quantity": dataLineItems[i].quantity })
+    }
+
+    numberMobile = dataCustomer.mobileNumber;
+    address = dataCustomer.completeAddress;
+    address2 = dataCustomer.forwardingAddress;
+    addressStreet = address.streetAddress;
+    addressStreet2 = address2.streetAddress;
+
+    customer = {
+        "contactId": dataCustomer._id,
+        "email": dataCustomer.email,
+        "address": {
+            "city": address2.formatted,
+            "subdivision": "",
+            "postalCode": "",
+            "country": "",
+            "addressLine": ""
+        },
+        "billingAddress": {
+            "country": "",
+            "streetAddress": {
+                "value": "",
+                "type": "Name"
+            },
+            "addressLine": "",
+            "addressLine_2": "secondary address",
+            "postalCode": "",
+            "subdivision": "",
+            "city": address.formatted
+        },
+        "shippingAddress": {
+            "country": address2.country,
+            "streetAddress": {
+                "value": "",
+                "type": "Name"
+            },
+            "addressLine": "",
+            "addressLine_2": "secondary address",
+            "postalCode": address2.postalCode,
+            "subdivision": "",
+            "city": address2.formatted
+        },
+        "phone": numberMobile.toString(),
+        "fullName": dataCustomer.fullName + " "+ dataCustomer.surname,
+        "firstName": dataCustomer.fullName,
+        "lastName": dataCustomer.surname
+    };
+
+    const payments = [{
+        "id": "00001",
+        "type": "Offline",
+        "amount": "0.00",
+        "date": now
+    }];
+
+    metadata = {
+        "notes": "Some note.",
+        "legalTerms": "Some legal terms",
+        "sourceUrl": "http://legalurl.com",
+        "source": "Some source",
+        "sourceRefId": "Some source ref id"
+    };
+
+    dates = {
+        "issueDate": now,
+        "dueDate": dueDate
+    };
+
+    createInvoice(customer, lineItems, payments, metadata, dates)
+        .then((results) => {
+            //console.log(results)
+        })
+        .catch((error) => {
+            console.log(error);
+        })
+
+}
+
+//Function that create an invoice
+export function createInvoice(customer, lineItems, payments, metadata, dates) {
+    let createInvoiceFields = {
+        "title": "MyNZShop",
+        "customer": customer,
+        "currency": "NZD",
+        "lineItems": lineItems,
+        "payments": payments,
+        "metadata": metadata,
+        "dates": dates
+    };
+
+    return invoices.createInvoice(createInvoiceFields);
+}
+/*
+export async function dataEmail() {
+    let currentEmail = await wixUsersBackend.currentUser.getEmail();
+    wixData.query("User")
+        .eq("email", currentEmail)
+        .find()
+        .then((results) => {
+            let items = results.items;
+        })
+}
+
+export async function dataIdMembers(email) {
+    let results = await wixData.query("Members/PrivateMembersData").eq("loginEmail", email).find()
+
+    return results.items.map((items) => {
+        return {
+            "_id": items._id
+        }
+    })
+}
+*/
