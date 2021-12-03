@@ -1,5 +1,5 @@
 import wixData from 'wix-data';
-import { myApproveByEmailFunction } from 'backend/admin'
+import { myApproveByEmailFunction, email2 } from 'backend/admin'
 
 let endDate;
 const todayDate = new Date();
@@ -32,13 +32,13 @@ export function searchUser(event) {
         .find()
         .then((results) => {
             if (results.items.length > 0) {
-                if(results.items[0].typeDoc == "Image"){
+                if (results.items[0].typeDoc == "Image") {
                     $w('#document3').collapse()
                     $w('#image').expand()
-                }else{
+                } else {
                     $w('#image').collapse()
                     $w('#document3').expand()
-                     $w('#document3').link = results.items[0].documentId
+                    $w('#document3').link = results.items[0].documentId
                 }
                 $w('#box1').expand();
                 $w('#text129').collapse();
@@ -52,7 +52,6 @@ export function searchUser(event) {
                 //console.log(diff);
                 $w('#days').value = diff.toString();
 
-               
             } else {
                 $w('#box1').collapse();
                 $w('#text129').expand();
@@ -61,7 +60,6 @@ export function searchUser(event) {
 
     $w('#image').tooltip = '';
     $w('#image').alt = '';
-    
 
 }
 
@@ -90,18 +88,14 @@ export async function activateMember() {
         .find()
         .then(async (results) => {
 
-            if (results.items[0].idPrivateMember == "" || results.items[0].idPrivateMember == null || results.items[0].idPrivateMember == undefined) {
-                $w('#alert3').text = "Please add the idPrivateMember field of this email " + email;
-                $w('#alert3').expand();
-            } else {
-                $w('#alert3').collapse();
-                $w('#alert2').collapse();
-                $w('#alert1').expand();
-                $w('#Activate').disable();
-                await myApproveByEmailFunction(email, endDate.toDateString(), parseInt(daysF.toFixed()));
-                $w('#alert1').collapse();
-                $w('#alert2').expand();
-            }
+            $w('#alert2').collapse();
+            $w('#alert1').expand();
+            $w('#Activate').disable();
+            await myApproveByEmailFunction(email, endDate.toDateString(), parseInt(daysF.toFixed()));
+            $w('#alert1').collapse();
+            $w('#alert2').expand();
+            $w('#DataUsers').refresh()
+            $w('#notification').expand();
         })
         .catch((err) => {
             let errorMsg = err;
@@ -172,4 +166,10 @@ export function endDate_change(event) {
     daysF = diff / (1000 * 60 * 60 * 24) + 1;
     $w('#Activate').enable()
     $w('#end').text = daysF.toFixed();
+}
+
+export async function emailActivate(event) {
+	await email2($w('#email').value);
+    $w('#alert2').text = "Activation email sent"
+    $w('#notification').collapse()
 }

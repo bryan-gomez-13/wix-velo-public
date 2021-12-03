@@ -32,9 +32,9 @@ export function eMail_2(member) {
     const memberId = member.idPrivateMember;
     const options = {
         variables: {
-            nameCustomer: member.fullName,
+            nameCustomer: member.fullName+" "+member.surname,
             SuiteID: member.suiteId,
-            Name: member.fullName,
+            Name: member.fullName+" "+member.surname,
             Address1: member.completeAddress.formatted,
             Address2: member.forwardingAddress.formatted,
             City: member.forwardingAddress.city,
@@ -85,8 +85,8 @@ export function eMail_5(json) {
             suiteId: json.suiteId
         }
     }
-    console.log(options)
-    console.log(json)
+    //console.log(options)
+    //console.log(json)
 
     triggeredEmails.emailMember(emailId, member, options)
         .then(() => {
