@@ -1,15 +1,17 @@
 import { appendValuesWrapper, updateValuesWrapper } from 'backend/googlesheet-wrapper.jsw';
 import wixData from 'wix-data';
+import { Email_Life_Member, Email_New_Member, Email_Renewal } from 'backend/emails.jsw';
 import { createMyPayment } from 'backend/pay';
+import { doRegistration } from 'backend/signIn.jsw';
 import wixPay from 'wix-pay';
 import wixLocation from 'wix-location';
 
 var total = null;
+var rowInGoogleSheet = 0;
 let name = "";
 
 $w.onReady(function () {
     $w('#BOne').disable();
-    $w('#BNTwo').disable();
 });
 
 export function Question1_change(event) {
@@ -19,7 +21,7 @@ export function Question1_change(event) {
 export function Question2_change(event) {
     change();
 
-    if ($w('#2SRButton1').value != "") {
+    if ($w('#indicateMembership').value != "") {
         dateRadioNoNo();
     }
 }
@@ -32,7 +34,6 @@ export function change() {
     if (first == "Yes") {
         FormYes();
         $w('#L0').collapse();
-        $w('#L1').collapse();
         $w('#Question2').collapse();
 
         //Five screen
@@ -40,27 +41,22 @@ export function change() {
         //$w('#text22').text = "Thanks for submitting. Our representatives will get in touch with you.";
 
         //$w('#text29').expand();
-        $w('#text27').collapse();
-        $w('#button30').collapse();
         $w('#text31').collapse();
 
-        $w('#button31').label = 'Send Form';
+        $w('#End').label = 'Submit >';
 
     } else {
         $w('#Question2').expand();
         $w('#BOne').disable();
         $w('#L0').expand();
-        $w('#L1').expand();
 
         //Five screen
         $w('#boxNo').expand();
         //$w('#text22').text = "The last step is pay your subscription for finish";
 
-        $w('#text29').collapse();
-        $w('#button30').expand();
         $w('#text31').expand();
 
-        $w('#button31').label = 'Next >';
+        $w('#End').label = 'Next >';
 
         if (Second == "Yes") {
             FormNoYes();
@@ -123,23 +119,11 @@ export function radioB(value) {
                 op.push({ label: results.items[2].title, value: results.items[2].title })
             }
 
-            $w('#2SRButton1').options = op;
+            $w('#indicateMembership').options = op;
         })
         .catch((err) => {
             let errorMsg = err;
         });
-}
-
-//================================== Email ==================================
-export function confirmEmail() {
-    let Email_1 = $w('#2SEmail1').value;
-    let Email_2 = $w('#2SEmail2').value;
-
-    if (Email_1 == Email_2) {
-        $w('#BNTwo').enable();
-    } else {
-        $w('#BNTwo').disable();
-    }
 }
 
 //================================== Dog's activities ==================================
@@ -214,7 +198,7 @@ export function add4_click(event) {
     $w('#D4Name').expand();
     $w('#D4Activities').expand();
     //Get field of the radio button 
-    let x = $w('#2SRButton1').value;
+    let x = $w('#indicateMembership').value;
 
     if ($w('#D5Name').isVisible == false && x.includes("Family")) {
         $w('#add5').expand();
@@ -330,7 +314,7 @@ export async function dateSubscription() {
     //console.log('MONTH')
     //console.log(dnow);
     let total = null;
-    let radioButton = $w('#2SRButton1').value;
+    let radioButton = $w('#indicateMembership').value;
     await wixData.query("Fees")
         .ascending('_createdDate')
         .find()
@@ -367,8 +351,11 @@ export async function dateSubscription() {
 export async function dateRadioNoNo(event) {
     let question1 = $w('#Question1').value;
     let question2 = $w('#Question2').value;
-    let radioB = $w('#2SRButton1').value;
+    let radioB = $w('#indicateMembership').value;
     let text = "";
+
+    if (radioB == "Individual") $w('#L0').collapse();
+    else $w('#L0').expand();
 
     if (question1 == "No") {
         if (question2 == "No") {
@@ -378,10 +365,12 @@ export async function dateRadioNoNo(event) {
                 total = 95;
                 text = "Individual $" + total;
                 name = "Individual";
+                $w('#L0').collapse();
             } else {
                 total = 140;
                 text = "Family $" + total;
                 name = "Family";
+                $w('#L0').expand();
             }
             $w('#pricingDetails').text = text;
         }
@@ -399,19 +388,24 @@ export function pay(event) {
             // Step 5 - Call the startPayment() function with the paymentId.
             // Include PaymentOptions to customize the payment experience.
             wixPay.startPayment(payment.id, {
-                    "showThankYouPage": true,
+                    "showThankYouPage": false,
                     //"termsAndConditionsLink": "https://davidcamachob.wixsite.com/nsdt/contact-nsdtc"
                 })
                 // Step 6 - Visitor enters the payment information.
                 // When the payment form is completed:
-                .then((result) => {
+                .then(async (result) => {
                     // Step 7 - Handle the payment result.
                     // (Next, see step 8 in the backend code below.)
                     //$w('#button26').enable();
                     let payment = "";
                     if (result.status === "Successful") {
                         $w('#bookButton').collapse();
-                        payment= "Paid";
+                        $w('#text35').expand();
+
+                        let date = new Date()
+                        await getEmail(date.toDateString(), 'Successful')
+
+                        payment = "Paid";
                         updateValuesOnSheet(payment);
                     } else if (result.status === "Pending") {
                         payment = "Pending";
@@ -421,26 +415,85 @@ export function pay(event) {
         });
 }
 // ==================== SEND FORM ====================
-export function sendForm(event) {
+export async function sendForm(event) {
+    console.log($w('#captcha1').token != undefined)
+    if ($w('#checkbox2').checked == true && $w('#checkbox3').checked == true && $w('#checkbox4').checked == true && $w('#checkbox5').checked == true && $w('#captcha1').token != undefined) {
+
+        wixData.query("Members").eq('email', $w('#email').value)
+            .find()
+            .then((results) => {
+                if (results.items.length > 0) {
+                    saveInformation();
+                } else {
+                    saveMember();
+                }
+            })
+            .catch((err) => {
+                let errorMsg = err;
+            });
+    } else {
+        $w('#checkbox2').focus();
+        $w('#checkbox3').focus();
+        $w('#checkbox4').focus();
+        $w('#checkbox5').focus();
+    }
+}
+
+async function saveMember() {
+    let json = {
+        'idPrivateMember': null,
+        'email': $w('#email').value,
+        'fullName': $w('#fullName').value
+    }
+
+    const contactInfo = {
+        'email': $w('#email').value,
+        'password': $w('#phone').value,
+        'options': {
+            'contactInfo': {
+                'firstName': $w('#fullName').value
+            }
+        }
+    }
+
+    const { approved } = await doRegistration(contactInfo, json);
+    if (approved) {
+        saveInformation();
+    }
+}
+
+async function saveInformation() {
     let first = $w('#Question1').value;
     if (first == "Yes") {
-        wixLocation.to('/');
+        $w('#text34').expand()
+        await saveValuesToSheet();
+        wixLocation.to('/specialthank-you');
+    } else {
+        $w('#statebox8').changeState("ThankYouMessage")
+        await saveValuesToSheet();
     }
-    saveValuesToSheet();
+
 }
 
 async function saveValuesToSheet() {
-    const payment = "";
+    let payment = "";
+    if ($w('#Question1').value == "Yes") {
+        $w('#text27').collapse();
+        payment = "";
+    } else {
+        payment = "Pending";
+    }
+    $w('#firstField').value = payment;
 
     const lifeMemberOrInstructor = $w('#Question1').value;
     const memberLastYear = $w('#Question2').value;
 
-    const indicateMembership = $w('#2SRButton1').value;
-    const fullName = $w('#input6').value;
-    const phone = $w('#input11').value;
-    const email = $w('#2SEmail1').value;
-    const confirmEmail = $w('#2SEmail2').value;
-    const fullAddress = $w('#input10').value;
+    const indicateMembership = $w('#indicateMembership').value;
+    const fullName = $w('#fullName').value;
+    const phone = $w('#phone').value;
+    const email = $w('#email').value;
+    //const confirmEmail = $w('#confirmEmail').value;
+    const fullAddress = $w('#address').value.formatted;
 
     const dogs1 = $w('#Dog1').value;
     const dogs2 = $w('#Dog2').value;
@@ -452,53 +505,219 @@ async function saveValuesToSheet() {
     const agreement1 = $w('#checkbox2').value;
     const agreement2 = $w('#checkbox3').value;
     const agreement3 = $w('#checkbox4').value;
-
-    let rowInGoogleSheet = 0;
+    const agreement4 = $w('#checkbox5').value;
 
     await wixData.query("NSDTC30")
-    .find()
-    .then((results) => {
-        if (results.items.length > 0) {
-            rowInGoogleSheet = results.items.length + 2;            
-        } else {
-            rowInGoogleSheet = 2;
-        }
-    })
-    .catch((err) => {
-        let errorMsg = err;
-    });
+        .find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                rowInGoogleSheet = results.items.length + 2;
+            } else {
+                rowInGoogleSheet = 2;
+            }
+        })
+        .catch((err) => {
+            let errorMsg = err;
+        });
 
-    $w('#rowInGoogleSheet').value = "A"+rowInGoogleSheet.toString();
     console.log(rowInGoogleSheet)
 
     // GOOGLE SHEET
-    const values = [payment, lifeMemberOrInstructor, memberLastYear, indicateMembership, fullName, phone, email, confirmEmail, fullAddress,
-        dogs1, dogs2, dogs3, dogs4, dogs5, dogs6, agreement1, agreement2, agreement3
+    const values = [payment, lifeMemberOrInstructor, memberLastYear, indicateMembership, fullName, phone, email, fullAddress,
+        dogs1, dogs2, dogs3, dogs4, dogs5, dogs6, agreement1, agreement2, agreement3, agreement4
     ];
     //COLLECTION IN WIX
-    let toInsert = {payment, lifeMemberOrInstructor, memberLastYear, indicateMembership, fullName, phone, email, confirmEmail, fullAddress,
-        dogs1, dogs2, dogs3, dogs4, dogs5, dogs6, agreement1, agreement2, agreement3, rowInGoogleSheet
+    let toInsert = {
+        payment,
+        lifeMemberOrInstructor,
+        memberLastYear,
+        indicateMembership,
+        fullName,
+        phone,
+        email,
+        fullAddress,
+        dogs1,
+        dogs2,
+        dogs3,
+        dogs4,
+        dogs5,
+        dogs6,
+        agreement1,
+        agreement2,
+        agreement3,
+        agreement4,
+        rowInGoogleSheet
     };
 
-    push(values, toInsert);
-}
-
-export async function push(values, toInsert){
     const res = await appendValuesWrapper(values);
     console.log(res);
     await wixData.insert('NSDTC30', toInsert)
+    let date = new Date()
+    await getEmail(date.toDateString())
 }
 
 // ==================== UPDATE PAYMENT ONLY WHEN THE PERSON SELECT "NO" IN THE FIRST QUESTION ====================
 async function updateValuesOnSheet(payment) {
     const Payment = payment;
     const values = [Payment];
+    console.log(rowInGoogleSheet);
     try {
-        const res = await updateValuesWrapper(values, $w('#rowInGoogleSheet').value, 'ROWS');
-        wixLocation.to('/');
+        const res = await updateValuesWrapper(values, "A" + rowInGoogleSheet.toString(), 'ROWS');
+        if ($w('#Question2').value == "Yes") {
+            wixLocation.to('/thank-you-renewing-member');
+        } else {
+            wixLocation.to('/membership-thank-you');
+        }
         console.log(res);
     } catch (err) {
-        wixLocation.to('/');
+        wixLocation.to('/thank-you');
         console.log(err.toString());
+    }
+}
+
+export async function getEmail(date, message) {
+
+    await wixData.query("Members").eq('email', $w('#email').value)
+        .find()
+        .then(async (results) => {
+            if (results.items.length > 0) {
+                console.log(results.items[0])
+                let json = {
+                    "email": results.items[0].email,
+                    "fullName": results.items[0].fullName,
+                    "idPrivateMember": results.items[0].idPrivateMember,
+                    "date": date
+                }
+
+                if ($w('#Question1').value == 'Yes') {
+                    await Email_Life_Member(json);
+                } else if ($w('#Question2').value == 'Yes' && message == "Successful") {
+                    await Email_Renewal(json);
+                } else if ($w('#Question2').value == 'No' && message == "Successful") {
+                    await Email_New_Member(json);
+                }
+            }
+        })
+        .catch((err) => {
+            console.log(err)
+        });
+}
+
+export function next1() { $w('#statebox8').changeState("PersonalDetails") }
+export function back2() { $w('#statebox8').changeState("PreQuestions") }
+export function next2() {
+    $w('#textValidation').collapse();
+    try {
+        if ($w('#indicateMembership').value === "Family (must be resident at same address)" || $w('#indicateMembership').value === "Family (Must be living at same address)" || $w('#indicateMembership').value === "Individual") {
+            checkValidation();
+            $w('#statebox8').changeState("DogSName");
+        } else {
+            $w('#textValidation').text = 'Missing Membership';
+            $w('#textValidation').expand();
+        }
+
+    } catch (err) {
+        $w('#textValidation').text = err.message;
+        $w('#textValidation').expand();
+    }
+}
+
+function checkValidation() {
+    let phone = ($w('#phone').value).split(' ');
+    let phoneS = ""
+    for (let i = 0; i < phone.length; i++) phoneS += phone[i]
+    // console.log(phoneS)
+
+    if (phoneS.length >= 8) {
+        if (!$w('#fullName').valid) throw new Error('Missing Full Name');
+        if (!$w('#phone').valid) throw new Error('Missing Mobile Phone');
+        if (!$w('#email').valid) throw new Error('Missing Email');
+        if (!$w('#confirmEmail').valid) throw new Error('Missing Email Confirm');
+        if ($w('#email').value !== $w('#confirmEmail').value) throw new Error('Emails are not identical');
+        if (!$w('#address').valid) throw new Error('Missing Address');
+    } else {
+        $w('#textValidation').text = "Numbers are missing on the mobile phone";
+        $w('#textValidation').expand();
+    }
+
+}
+
+export function back3() { $w('#statebox8').changeState("PersonalDetails") }
+export function next3() {
+    let dog1 = true,
+        dog2 = true,
+        dog3 = true,
+        dog4 = true,
+        dog5 = true,
+        dog6 = true
+
+    $w('#textValidation3').collapse();
+
+    if ($w('#D1Name').value.length > 0 && $w('#D1Activities').value.length > 0) {
+        if ($w('#D1Name').value.length > 0)
+            if (!($w('#D1Activities').value.length > 0)) dog1 = false
+        if ($w('#D1Activities').value.length > 0)
+            if (!($w('#D1Name').value.length > 0)) dog1 = false
+
+        if ($w('#D2Name').value.length > 0)
+            if (!($w('#D2Activities').value.length > 0)) dog2 = false
+        if ($w('#D2Activities').value.length > 0)
+            if (!($w('#D2Name').value.length > 0)) dog2 = false
+
+        if ($w('#D3Name').value.length > 0)
+            if (!($w('#D3Activities').value.length > 0)) dog3 = false
+        if ($w('#D3Activities').value.length > 0)
+            if (!($w('#D3Name').value.length > 0)) dog3 = false
+
+        if ($w('#D4Name').value.length > 0)
+            if (!($w('#D4Activities').value.length > 0)) dog4 = false
+        if ($w('#D4Activities').value.length > 0)
+            if (!($w('#D4Name').value.length > 0)) dog4 = false
+
+        if ($w('#D5Name').value.length > 0)
+            if (!($w('#D5Activities').value.length > 0)) dog5 = false
+        if ($w('#D5Activities').value.length > 0)
+            if (!($w('#D5Name').value.length > 0)) dog5 = false
+
+        if ($w('#D6Name').value.length > 0)
+            if (!($w('#D6Activities').value.length > 0)) dog6 = false
+        if ($w('#D6Activities').value.length > 0)
+            if (!($w('#D6Name').value.length > 0)) dog6 = false
+
+        if (dog1 && dog2 && dog3 && dog4 && dog5 && dog6) {
+            $w('#statebox8').changeState("TheAgreement")
+        } else {
+            $w('#textValidation3').text = "Complete information";
+            $w('#textValidation3').expand();
+        }
+    } else {
+        $w('#textValidation3').text = "Complete information";
+        $w('#textValidation3').expand();
+    }
+
+}
+
+export function back4() { $w('#statebox8').changeState("DogSName") }
+
+function error3(i) {
+    $w('#textValidation3').text = "Complete information";
+    $w('#textValidation3').expand();
+
+    switch (i) {
+    case 0:
+        add2_click();
+        break;
+    case 1:
+        add3_click();
+        break;
+    case 2:
+        add4_click();
+        break;
+    case 3:
+        add5_click();
+        break;
+    case 4:
+        add6_click();
+        break;
     }
 }
