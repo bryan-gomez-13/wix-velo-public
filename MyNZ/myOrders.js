@@ -11,6 +11,8 @@ $w.onReady(async function () {
     setInterval(() => {
         $w('#shippingOption').enable();
     }, 6000)
+    //Use Freight Agent - customer to email MyNZ.Shop for details
+    dropdown()
     let emauilCurrentUser = await wixUsers.currentUser.getEmail();
     await $w('#dataset1').setFilter(wixData.filter().eq("user", emauilCurrentUser).and(wixData.filter().eq("shippingOption", "Pending")))
     if ($w('#dataset1').getTotalCount() === 0) {
@@ -45,8 +47,8 @@ export async function button12_click_1(event) {
                                     $w('#shippingOption').disable();
                                     $w('#text124').expand();
                                     $w('#dataset1').setFilter(wixData.filter().eq("user", emauilCurrentUser).and(wixData.filter().eq("shippingOption", "Pending")))
-                                    $w('#text129').text = "0";
-                                    $w('#text128').text = "0";
+                                    $w('#totalPrice').value = "0";
+                                    $w('#totalCW').value = "0";
                                     $w('#text130').expand();
                                     $w('#button12').collapse();
                                     setTimeout(() => {
@@ -70,16 +72,29 @@ export function shippingOption_change(event) {
 
 function calculateData() {
     for (let i = 0; i < $w('#table1').rows.length; i++) {
-        totalPrice += parseFloat($w('#table1').rows[i].chargeableWeight)
-        totalCW += parseFloat($w('#table1').rows[i].totalPrice)
+        totalCW += parseFloat($w('#table1').rows[i].chargeableWeight)
+        totalPrice += parseFloat($w('#table1').rows[i].totalPrice)
     }
 
     if (totalPrice.toString() && totalCW.toString() === "NaN") {
-        $w('#text128').text = "0"
-        $w('#text129').text = "0"
+        $w('#totalPrice').value = "0";
+        $w('#totalCW').value = "0";
     } else {
-        $w('#text128').text = totalPrice.toString();
-        $w('#text129').text = totalCW.toString();
+        $w('#totalPrice').value = totalPrice.toString();
+        $w('#totalCW').value = totalCW.toString();
     }
 
+}
+
+function dropdown(){
+    wixData.query("ShippingOptions")
+    .ascending('title')
+    .find()
+    .then((results) => {
+		let sectorArray = [];
+		for(let i = 0; i < results.items.length; i++){
+			sectorArray.push({label: results.items[i].title, value: results.items[i].title})
+		}
+		$w('#shippingOption').options = sectorArray;
+    });
 }

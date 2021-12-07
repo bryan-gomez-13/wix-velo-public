@@ -5,6 +5,7 @@ import { getIdUser } from 'backend/querys.jsw';
 import wixData from 'wix-data';
 
 let customer;
+var shippingOption = ""
 
 $w.onReady(function () {
     $w('#text124').collapse()
@@ -15,7 +16,8 @@ $w.onReady(function () {
         wixData.queryReferenced("Users", id, "myProducts")
             .then((results) => {
                 let items = results.items[0];
-                $w('#shippingOption').text = items.shippingOption;
+                shippingOption = items.shippingOption
+                $w('#shippingOption').text = shippingOption;
             })
         $w('#statebox8').changeState("despatch")
         $w('#packageArrival').text = rowData.fullName
@@ -53,8 +55,8 @@ export async function despatchEmail_click(event) {
     let id = await getIdUser(email)
     let trackInfo = $w('#tracketInfo').value
 
-    insertProductsHistory(email);
-    insertReference(email);
+    await insertProductsHistory(email);
+    await insertReference(email);
 
     wixData.query("Users")
         .eq("email", email)
@@ -65,7 +67,8 @@ export async function despatchEmail_click(event) {
                 memberId: items[0].idPrivateMember,
                 memberName: items[0].fullName,
                 suiteNumber: items[0].suiteId,
-                trackInfo: trackInfo
+                trackInfo: trackInfo,
+                shippingOption: shippingOption
             }
             sendEmailDespatch(options)
                 .then((results) => {

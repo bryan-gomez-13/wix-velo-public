@@ -89,8 +89,8 @@ async function saveItems() {
         "taxesRate": "0",
         "taxesCode": "taxesCode",
         "packageArrival": $w('#IPArrival').value.toDateString(),
-        "chargeableWeight": chargeableWeight,
-        "unitPrice": unitPrice,
+        "chargeableWeight": chargeableWeight.toFixed(2),
+        "unitPrice": unitPrice.toFixed(2),
         "totalPrice": totalPrice.toFixed(2),
         "notification": false
     }

@@ -32,8 +32,8 @@ async function getInformation() {
             days = itemsDate - dateFrom + today.getDate();
             $w('#days').text = "Remaining days: " + days.toString();
             $w('#suiteId').text = "SuiteID: " + items[0].suiteId
-            $w('#completeAddress').text = "Address1: " + items[0].completeAddress.formatted;
-            $w('#forwardingAddress').text = "Address2: " + items[0].forwardingAddress.formatted;
+            $w('#completeAddress').text = "Current Residence: " + items[0].completeAddress.formatted;
+            $w('#forwardingAddress').text = "Forwarding Address: " + items[0].forwardingAddress.formatted;
         })
 
     await currentMember.getRoles()
@@ -61,10 +61,6 @@ async function changeAddress() {
                 "country": $w('#forwardingA').value.country,
                 "formatted": $w('#forwardingA').value.formatted,
                 "postalCode": $w('#forwardingA').value.postalCode,
-                "streetAddress": {
-                    "name": $w('#forwardingA').value.streetAddress.name,
-                    "number": $w('#forwardingA').value.streetAddress.number
-                }
             }
             results.items[0].forwardingAddress = address;
             wixData.update("Users", results.items[0])

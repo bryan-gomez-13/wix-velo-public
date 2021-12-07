@@ -48,7 +48,7 @@ function onClickSignIn() {
 
 // ====================================== CHECK IF ALL THE FIELDS IS OK ====================================== 
 function checkValidation() {
-    console.log('here')
+    //console.log('here')
     if (!$w('#fullName').valid) throw new Error('Missing name');
     if (!$w('#surname').valid) throw new Error('Missing surname');
     if (!$w('#mobilePhone').valid) throw new Error('Missing mobile phone');
@@ -74,10 +74,11 @@ async function register() {
         "country": $w('#completeAddress').value.country,
         "formatted": $w('#completeAddress').value.formatted,
         "postalCode": $w('#completeAddress').value.postalCode,
-        "streetAddress": {
+        //"subdivision": $w('#completeAddress').value.subdivision,
+        /*"streetAddress": {
             "name": $w('#completeAddress').value.streetAddress.name,
             "number": $w('#completeAddress').value.streetAddress.number
-        }
+        }*/
     }
 
     let addressForwarding = {
@@ -85,18 +86,19 @@ async function register() {
         "country": $w('#forwardingAddress').value.country,
         "formatted": $w('#forwardingAddress').value.formatted,
         "postalCode": $w('#forwardingAddress').value.postalCode,
-        "streetAddress": {
+        //"subdivision": $w('#forwardingAddress').value.subdivision,
+        /*"streetAddress": {
             "name": $w('#forwardingAddress').value.streetAddress.name,
             "number": $w('#forwardingAddress').value.streetAddress.number
-        }
+        }*/
     }
 
     if ($w('#fileType').value == "Image") {
         await uploadImage();
-        console.log("IMAGE", Image)
+        //console.log("IMAGE", Image)
     } else {
         await uploadDocument();
-        console.log("DOCUMENT", Document)
+        //console.log("DOCUMENT", Document)
     }
 
     let json = {
@@ -121,7 +123,7 @@ async function register() {
         'days': null
     }
 
-    console.log(json)
+    //console.log(json)
 
     const contactInfo = {
         'email': $w('#email').value,
@@ -185,7 +187,7 @@ export async function uploadDocument() {
     await $w("#uploadDocument").uploadFiles()
         .then((uploadedFiles) => {
             uploadedFiles.forEach(uploadedFile => {
-                console.log(uploadedFile.fileUrl)
+                //console.log(uploadedFile.fileUrl)
                 Document = uploadedFile.fileUrl
             })
         })
@@ -198,7 +200,7 @@ export async function uploadImage() {
     await $w("#uploadImage").uploadFiles()
         .then((uploadedFiles) => {
             uploadedFiles.forEach(async uploadedFile => {
-                console.log(uploadedFile.fileUrl)
+                //console.log(uploadedFile.fileUrl)
                 Image = uploadedFile.fileUrl
             })
         })
