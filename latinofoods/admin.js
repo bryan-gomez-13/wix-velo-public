@@ -28,17 +28,23 @@ export async function checkList(results) {
             if (results.items[i].additionalInfoSections[0].description != "N/A") {
                 if (results.items[i].additionalInfoSections[0].description != 'N.A.') {
                     let dateProduct;
-                    let date;
+                    let date, date1, date2;
 
                     if (((results.items[i].additionalInfoSections[0].description).includes('<p>') == true) || ((results.items[i].additionalInfoSections[0].description).includes('</p>') == true)) {
                         date = results.items[i].additionalInfoSections[0].description;
-                        let newDate = date.slice(3, date.length - 5)
+                        date1 = await date.replace('<p>','')
+                        date2 = await date1.replace('</p>','')
+                        //let newDate = date.slice(3, date.length - 5)
+                        let newDate = date2
                         dateProduct = new Date(newDate).valueOf();
                         date = newDate;
+                        //console.log(i)
                     } else {
                         dateProduct = new Date(results.items[i].additionalInfoSections[0].description).valueOf();
                         date = results.items[i].additionalInfoSections[0].description;
+                        //console.log(i)
                     }
+                    //console.log(i)
 
                     let dateNow = Date.now();
 
@@ -73,12 +79,7 @@ export function saveProduct(toInsert) {
 }
 
 export function searchDays(event) {
-    let filter = wixData.filter();
-    let sort = wixData.sort();
-    let x = $w('#inputSearch').value;
-    filter = filter.ge('days', 0).and(filter.le("days", parseInt(x, 10)));
-    $w('#dataset1').setFilter(filter).then(() => $w('#dataset1').setSort(sort.ascending('days')));
-    $w('#table1').expand();
+    getElements($w('#inStock').value);
 }
 
 export async function getCollection(event) {
@@ -104,4 +105,22 @@ export function order(results, array) {
             array.push(results[i]._id)
         }
     }
+}
+
+export function inStock(event) {
+    getElements($w('#inStock').value)
+}
+
+export function getElements(Stock){
+    let filter = wixData.filter();
+    let sort = wixData.sort();
+    let x = $w('#inputSearch').value;
+    filter = filter.le("days", parseInt(x, 10));
+    if(Stock == "Yes"){
+        filter = filter.le("days", parseInt(x, 10)).and(filter.eq("inStock",true));
+    }else if(Stock == "No"){
+        filter = filter.le("days", parseInt(x, 10)).and(filter.eq("inStock",false));
+    }
+    $w('#dataset1').setFilter(filter).then(() => $w('#dataset1').setSort(sort.ascending('days')));
+    $w('#table1').expand();
 }

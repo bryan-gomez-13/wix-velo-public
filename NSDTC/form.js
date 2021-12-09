@@ -416,6 +416,7 @@ export function pay(event) {
 }
 // ==================== SEND FORM ====================
 export async function sendForm(event) {
+    $w('#alert').collapse()
     console.log($w('#captcha1').token != undefined)
     if ($w('#checkbox2').checked == true && $w('#checkbox3').checked == true && $w('#checkbox4').checked == true && $w('#checkbox5').checked == true && $w('#captcha1').token != undefined) {
 
@@ -436,6 +437,7 @@ export async function sendForm(event) {
         $w('#checkbox3').focus();
         $w('#checkbox4').focus();
         $w('#checkbox5').focus();
+        $w('#alert').expand();
     }
 }
 
@@ -612,7 +614,7 @@ export function next2() {
             checkValidation();
             $w('#statebox8').changeState("DogSName");
         } else {
-            $w('#textValidation').text = 'Missing Membership';
+            $w('#textValidation').text = 'Please fillout all the fields';
             $w('#textValidation').expand();
         }
 
@@ -626,19 +628,20 @@ function checkValidation() {
     let phone = ($w('#phone').value).split(' ');
     let phoneS = ""
     for (let i = 0; i < phone.length; i++) phoneS += phone[i]
-    // console.log(phoneS)
+    console.log(phoneS)
 
-    if (phoneS.length >= 8) {
-        if (!$w('#fullName').valid) throw new Error('Missing Full Name');
-        if (!$w('#phone').valid) throw new Error('Missing Mobile Phone');
-        if (!$w('#email').valid) throw new Error('Missing Email');
-        if (!$w('#confirmEmail').valid) throw new Error('Missing Email Confirm');
-        if ($w('#email').value !== $w('#confirmEmail').value) throw new Error('Emails are not identical');
-        if (!$w('#address').valid) throw new Error('Missing Address');
-    } else {
+    //if (phoneS.length >= 8) {
+    if (!$w('#fullName').valid) throw new Error('Missing Full Name');
+    if (!(phoneS.length >= 8)) throw new Error('Numbers are missing on the mobile phone');
+    if (!$w('#phone').valid) throw new Error('Missing Mobile Phone');
+    if (!$w('#email').valid) throw new Error('Missing Email');
+    if (!$w('#confirmEmail').valid) throw new Error('Missing Email Confirm');
+    if ($w('#email').value !== $w('#confirmEmail').value) throw new Error('Emails are not identical');
+    if (!$w('#address').valid) throw new Error('Missing Address');
+    /*} else {
         $w('#textValidation').text = "Numbers are missing on the mobile phone";
         $w('#textValidation').expand();
-    }
+    }*/
 
 }
 
