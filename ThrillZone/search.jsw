@@ -1,0 +1,22 @@
+import wixData from 'wix-data';
+
+export async function queryF(query) {
+    await wixData.query("ThrillZoneQuerys")
+        .eq("title", query)
+        .find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                results.items[0].total += 1;
+                wixData.update("ThrillZoneQuerys", results.items[0])
+            } else {
+                let newQuery = {
+                    "title": query,
+                    "total": 1
+                };
+                wixData.insert("ThrillZoneQuerys", newQuery)
+            }
+        })
+        .catch((err) => {
+            console.log(err)
+        });
+}
