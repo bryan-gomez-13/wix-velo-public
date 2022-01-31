@@ -7,6 +7,7 @@ import wixPay from 'wix-pay';
 import wixLocation from 'wix-location';
 
 var total = null;
+var counterRow = [];
 var rowInGoogleSheet = 0;
 let name = "";
 
@@ -259,7 +260,7 @@ export function dog1Field() {
     let name = $w('#D1Name').value;
     let activities = $w('#D1Activities').value;
     $w('#Dog1').value = name + " - " + activities;
-    console.log($w('#Dog1').value);
+    //console.log($w('#Dog1').value);
 }
 
 //Dog2
@@ -268,7 +269,7 @@ export function dog2Field() {
     if ($w('#D2Name').value != "") {
         $w('#Dog2').value = $w('#D2Name').value + " - " + $w('#D2Activities').value;
     }
-    console.log($w('#Dog2').value);
+    //console.log($w('#Dog2').value);
 }
 
 //Dog3
@@ -277,7 +278,7 @@ export function dog3Field() {
     if ($w('#D3Name').value != "") {
         $w('#Dog3').value = $w('#D3Name').value + " - " + $w('#D3Activities').value;
     }
-    console.log($w('#Dog3').value);
+    //console.log($w('#Dog3').value);
 }
 
 //Dog4
@@ -286,7 +287,7 @@ export function dog4Field() {
     if ($w('#D4Name').value != "") {
         $w('#Dog4').value = $w('#D4Name').value + " - " + $w('#D4Activities').value;
     }
-    console.log($w('#Dog4').value);
+    //console.log($w('#Dog4').value);
 }
 
 //Dog5
@@ -295,7 +296,7 @@ export function dog5Field() {
     if ($w('#D5Name').value != "") {
         $w('#Dog5').value = $w('#D5Name').value + " - " + $w('#D5Activities').value;
     }
-    console.log($w('#Dog5').value);
+    //console.log($w('#Dog5').value);
 }
 
 //Dog6
@@ -304,7 +305,7 @@ export function dog6Field() {
     if ($w('#D6Name').value != "") {
         $w('#Dog6').value = $w('#D6Name').value + " - " + $w('#D6Activities').value;
     }
-    console.log($w('#Dog6').value);
+    //console.log($w('#Dog6').value);
 }
 
 /// ==================== Date ====================
@@ -376,7 +377,7 @@ export async function dateRadioNoNo(event) {
         }
     }
     $w('#totalPrice').text = "$" + total;
-    console.log(total);
+    //console.log(total);
 }
 
 export function pay(event) {
@@ -401,6 +402,7 @@ export function pay(event) {
                     if (result.status === "Successful") {
                         $w('#bookButton').collapse();
                         $w('#text35').expand();
+                        $w('#reloadThanks').expand();
 
                         let date = new Date()
                         await getEmail(date.toDateString(), 'Successful')
@@ -417,13 +419,15 @@ export function pay(event) {
 // ==================== SEND FORM ====================
 export async function sendForm(event) {
     $w('#alert').collapse()
-    console.log($w('#captcha1').token != undefined)
+    //console.log($w('#captcha1').token != undefined)
     if ($w('#checkbox2').checked == true && $w('#checkbox3').checked == true && $w('#checkbox4').checked == true && $w('#checkbox5').checked == true && $w('#captcha1').token != undefined) {
-
+        $w('#End').disable()
         wixData.query("Members").eq('email', $w('#email').value)
             .find()
-            .then((results) => {
+            .then(async (results) => {
                 if (results.items.length > 0) {
+                    results.items[0].fullName = $w('#fullName').value
+                    await wixData.update("Members", results.items[0])
                     saveInformation();
                 } else {
                     saveMember();
@@ -433,6 +437,7 @@ export async function sendForm(event) {
                 let errorMsg = err;
             });
     } else {
+        $w('#End').enable()
         $w('#checkbox2').focus();
         $w('#checkbox3').focus();
         $w('#checkbox4').focus();
@@ -468,7 +473,8 @@ async function saveInformation() {
     let first = $w('#Question1').value;
     if (first == "Yes") {
         $w('#text34').expand()
-        await saveValuesToSheet();
+        $w('#reloadYes').expand()
+        await saveValuesToSheet()
         wixLocation.to('/specialthank-you');
     } else {
         $w('#statebox8').changeState("ThankYouMessage")
@@ -509,19 +515,12 @@ async function saveValuesToSheet() {
     const agreement3 = $w('#checkbox4').value;
     const agreement4 = $w('#checkbox5').value;
 
-    await wixData.query("NSDTC30")
-        .find()
-        .then((results) => {
-            if (results.items.length > 0) {
-                rowInGoogleSheet = results.items.length + 2;
-            } else {
-                rowInGoogleSheet = 2;
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
-
+    let results = await wixData.query('NSDTC30').find().then();
+    if (results.totalCount > 0) {
+        rowInGoogleSheet = results.totalCount + 2;
+    } else {
+        rowInGoogleSheet = 2;
+    }
     console.log(rowInGoogleSheet)
 
     // GOOGLE SHEET
@@ -551,8 +550,8 @@ async function saveValuesToSheet() {
         rowInGoogleSheet
     };
 
-    const res = await appendValuesWrapper(values);
-    console.log(res);
+    const res = await appendValuesWrapper(values, 'sheetId');
+    //console.log(res);
     await wixData.insert('NSDTC30', toInsert)
     let date = new Date()
     await getEmail(date.toDateString())
@@ -562,7 +561,7 @@ async function saveValuesToSheet() {
 async function updateValuesOnSheet(payment) {
     const Payment = payment;
     const values = [Payment];
-    console.log(rowInGoogleSheet);
+    //console.log(rowInGoogleSheet);
     try {
         const res = await updateValuesWrapper(values, "A" + rowInGoogleSheet.toString(), 'ROWS');
         if ($w('#Question2').value == "Yes") {
@@ -570,7 +569,7 @@ async function updateValuesOnSheet(payment) {
         } else {
             wixLocation.to('/membership-thank-you');
         }
-        console.log(res);
+        //console.log(res);
     } catch (err) {
         wixLocation.to('/thank-you');
         console.log(err.toString());
@@ -583,7 +582,7 @@ export async function getEmail(date, message) {
         .find()
         .then(async (results) => {
             if (results.items.length > 0) {
-                console.log(results.items[0])
+                //console.log(results.items[0])
                 let json = {
                     "email": results.items[0].email,
                     "fullName": results.items[0].fullName,
@@ -628,7 +627,7 @@ function checkValidation() {
     let phone = ($w('#phone').value).split(' ');
     let phoneS = ""
     for (let i = 0; i < phone.length; i++) phoneS += phone[i]
-    console.log(phoneS)
+    //console.log(phoneS)
 
     //if (phoneS.length >= 8) {
     if (!$w('#fullName').valid) throw new Error('Missing Full Name');

@@ -13,29 +13,36 @@ $w.onReady(async function () {
 	filterData();
 	await getDataPlan3();
 	getDataPlan4();
+	if(size > 2){
+		time();
+	}
 });
 
 export function button30_click(event) {
 	let category = $w('#dropdown1').value;
 	let keywork = $w('#input1').value;
 	let dnow = new Date();
-	var filter = wixData.filter();
+	var f = wixData.filter();
+	var filter = wixData.filter().and(f.ge("dateFinalCourse", dnow).and(f.eq("active", true)));
 	if(category.length !== 0){
-		filter = filter.eq("category", category).and(filter.ge("dateFinalCourse", dnow));
+		//filter = filter.eq("category", category).and(filter.ge("dateFinalCourse", dnow).and(filter.eq("active", true)));
+		filter = filter.and(f.eq("category", category));
 	}
 	if( keywork.length !== 0){
-		filter = filter.contains("title", keywork).and(filter.ge("dateFinalCourse", dnow));
+		//filter = filter.contains("title", keywork).and(filter.ge("dateFinalCourse", dnow).and(filter.eq("active", true)));
+		filter = filter.and(f.contains("title", keywork));
 	}
 
 	$w("#dataset17").setFilter(filter)
+	itemDateRepeater();
 }
 
 function filterData() {
 	let filter = wixData.filter();
 	let sort = wixData.sort();
-	filter = filter.eq('active',true).and(filter.eq('plan','3f7325a4-5b0f-45dd-9397-b9a3ce1f2dd4')).and(filter.ge('dateFinalCourse', dnow));
+	filter = filter.eq('active',true).and(filter.ge('dateFinalCourse', dnow));
 	$w('#dataset17').setFilter(filter);
-	//console.log(filter);
+	itemDateRepeater();
 }
 
 function getDataPlan3() {
@@ -95,6 +102,10 @@ function getDataPlan3() {
 }
 
 export function right_click(event) {
+	right1();
+}
+
+export function right1(){
 	if(change >= size-1){
 		//$w('#right').hide();
 	}else{
@@ -119,6 +130,10 @@ export function right_click(event) {
 }
 
 export function left_click(event) {
+	left();
+}
+
+export function left(){
 	console.log(change);
 	change--
 	if(change < 1){
@@ -147,7 +162,6 @@ export function left_click(event) {
 	console.log(change);
 }
 
-
 function getDataPlan4() {
 	let filterPlan4 = wixData.query("Banner");
 	return filterPlan4.eq('active',true).and(filterPlan4.ge('dateFinal',dnow)).find().then(results => {
@@ -162,21 +176,78 @@ function getDataPlan4() {
 			
 			case 1:
 				$w('#slideshow1').collapse();
-				$w('#imageUno').alt = plan4[0].title;
-				$w('#imageUno').src = plan4[0].image;
-				$w('#imageUno').link = plan4[0].link;
+				$w('#imageOne').alt = plan4[0].title;
+				$w('#imageOne').src = plan4[0].image;
+				$w('#imageOne').link = plan4[0].link;
 				break;
 
 			case 2:
 				//banner 1
-				$w('#imageUno').alt = plan4[0].title;
-				$w('#imageUno').src = plan4[0].image;
-				$w('#imageUno').link = plan4[0].link;
+				$w('#imageOne').alt = plan4[0].title;
+				$w('#imageOne').src = plan4[0].image;
+				$w('#imageOne').link = plan4[0].link;
 				//banner 2
-				$w('#imageDos').alt = plan4[1].title;
-				$w('#imageDos').src = plan4[1].image;
-				$w('#imageDos').link = plan4[1].link;
+				$w('#imageTwo').alt = plan4[1].title;
+				$w('#imageTwo').src = plan4[1].image;
+				$w('#imageTwo').link = plan4[1].link;
 				break;
 		}
+	})
+}
+
+export async function time(){
+	if(change === size-1){
+		change = 0;
+		await delay(4);
+		right2();
+	}else{
+		await delay(4);
+		right2();
+	}
+}
+
+export function right2(){
+	if(change >= size-1){
+		//$w('#right').hide();
+	}else{
+		$w('#sImage0').src = plan3[change].image;
+		$w('#sTitle0').text = plan3[change].title;
+		$w('#sShortDescription0').text = plan3[change].shortDescription;
+		$w('#sButton0').link = plan3[change]['link-allcourses-title'];
+		change++
+		if(change >= size-1){
+			//$w('#right').hide();
+			$w('#sImage1').src = plan3[change].image;
+			$w('#sTitle1').text = plan3[change].title;
+			$w('#sShortDescription1').text = plan3[change].shortDescription;
+			$w('#sButton1').link = plan3[change]['link-allcourses-title'];
+		}else{
+			$w('#sImage1').src = plan3[change].image;
+			$w('#sTitle1').text = plan3[change].title;
+			$w('#sShortDescription1').text = plan3[change].shortDescription;
+			$w('#sButton1').link = plan3[change]['link-allcourses-title'];
+		}
+	}
+	time();
+}
+
+export function delay(time){
+	return new Promise(function(resolve){
+        setTimeout(resolve,time*1000);
+    });
+}
+
+export function itemDateRepeater(){
+	$w('#dataset17').onReady(() => {
+		$w("#repeater1").forEachItem( ($item, itemData, index) => {
+			let repeaterData = $w("#repeater1").data;
+			if(repeaterData[index].checkBoxDate == true){
+				$item('#group1').show();
+				$item('#group2').hide();
+			}else{
+				$item('#group2').show();
+				$item('#group1').hide();
+			}
+		});
 	})
 }

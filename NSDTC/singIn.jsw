@@ -1,0 +1,15 @@
+import { approveBy3rdParty } from 'backend/signIn.js';
+
+export async function doRegistration(contactInfo,json) {
+     try {
+         if ( contactInfo.email && contactInfo.password && contactInfo.options.contactInfo.firstName ) {
+             await approveBy3rdParty(contactInfo.email, contactInfo.password, contactInfo.options, json);
+             return { 'approved': true };
+         } else {
+             throw new Error('invalid data');
+         }
+     } catch (err) {
+         console.error(err);
+         return { 'approved': false };
+     }
+ }

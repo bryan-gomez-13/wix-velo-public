@@ -1,16 +1,17 @@
 import { appendValues, updateValues } from '@velo/google-sheets-integration-backend';
 import wixSecretsBackend from 'wix-secrets-backend';
 
-async function getSecretSheetId() {
-    const id = await wixSecretsBackend.getSecret('sheetId');
+async function getSecretSheetId(cheet) {
+    //  member = sheetId    --     Training = SheetTraining     --     Agility = SheetAgility     --     BabyPPS = SheetBabyPPS
+    const id = await wixSecretsBackend.getSecret(cheet);
     return id;
 }
 // ==================================== CREATE ====================================
-export async function appendValuesWrapper(values) {
+export async function appendValuesWrapper(values, cheet) {
     try {
         validateValues(values);
         try {
-            const sheetId = await getSecretSheetId();
+            const sheetId = await getSecretSheetId(cheet);
             const result = await appendValues(sheetId, values);
             const response = result.data.updates.updatedRows + ' rows were appended';
             return response;

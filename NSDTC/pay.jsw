@@ -8,10 +8,12 @@ export function createMyPayment(name,total) {
     "items": [ 
       {
         name: name,
-        price: 1
+        //price: 1
+        price: total
       }
     ],
-    amount: 1
+    //amount: 1
+    amount: total
   }
   
   // Step 4 - Call createPayment() with the payment information 
