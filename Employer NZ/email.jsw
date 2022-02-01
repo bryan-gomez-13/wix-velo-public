@@ -1,0 +1,28 @@
+//
+import { triggeredEmails } from 'wix-crm-backend';
+
+//Email 1
+export function eMail(json) {
+    const emailId = "email";
+    //Email of the owner
+
+	let YOURWEB = "321ec922-2918-46c6-a605-2c478af4ed9e"
+	let OWNER = "4861c686-0fa6-4fa2-89b9-c03541dac54e"
+
+    const memberId = YOURWEB;
+    const options = {
+        variables: {
+            jobId: json.jobId,
+			model: json.title,
+			review: json.review,
+        }
+    }
+
+    return triggeredEmails.emailMember(emailId, memberId, options)
+        .then(() => {
+            console.log("Email was sent to member");
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

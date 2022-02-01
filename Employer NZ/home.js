@@ -61,15 +61,15 @@ function filter(Type) {
 	var f = wixData.filter();
 
 	if( makeDrop !== 'All' ){
-		console.log(1)
+		//console.log(1)
 		filter = filter.and(f.eq("jobMake", makeDrop));
 	}
 	if( cityDrop !== 'All' ){
-		console.log(2)
+		//console.log(2)
 		filter = filter.and(f.eq("jobTownOrCity", cityDrop));
 	}
 	if( searchIT !== "" || searchIT !== null || searchIT !== undefined ){
-		console.log(3)
+		//console.log(3)
 		filter = filter.and(f.contains("title", searchIT));
 	}
 	$w("#dataset1").setFilter(filter)
