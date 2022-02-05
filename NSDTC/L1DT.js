@@ -19,6 +19,7 @@ export function init() {
     $w('#BTwo').onClick(() => BTwo());
     $w('#BThree').onClick(() => BThree());
     $w('#BFour').onClick(() => BFour());
+    $w('#SubmitNoB').onClick(() => fullPeople());
 
     $w('#back2').onClick(() => BackTwo());
     $w('#back3').onClick(() => BackThree());
@@ -41,16 +42,15 @@ function getDate() {
                 $w('#date').text = date.toDateString();
 
                 $w('#pricingDetails').text = 'L1DT $' + firstItem.price;
-				total = firstItem.price
+                total = firstItem.price
                 $w('#totalPrice').text = '$' + firstItem.price;
 
                 $w('#numberOFPeople').text = firstItem.numberOfPeople + " left";
 
                 if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#BOne').disable();
-                    $w('#L0').text = 'The course is full come back later';
-                    $w('#textValidation1').text = 'The course is full come back later';
-                    $w('#textValidation1').expand();
+                    $w('#BOne').collapse();
+                    $w('#SubmitNoT').expand();
+                    $w('#SubmitNoB').expand();
                 }
 
             } else {
@@ -71,9 +71,9 @@ export async function BOne() {
 
         if ($w('#question').value == 'Yes') {
             $w('#reloadOne').expand();
-            await saveValuesToSheet("")
+            await saveValuesToSheet("");
             //await delay(2)
-            wixLocation.to('/thank-you');
+            //wixLocation.to('/thank-you');
             //wixLocation.to('/behaviour');
         } else {
             $w('#Box').changeState("DogSName");
@@ -166,22 +166,6 @@ export async function BFour() {
         //await delay(2)
         $w('#Box').changeState("ThankYouMessage");
 
-        /*
-                wixData.query("Members").eq('email', $w('#email').value)
-                    .find()
-                    .then(async (results) => {
-                        if (results.items.length > 0) {
-                            results.items[0].fullName = $w('#fullName').value
-                            //await wixData.update("Members", results.items[0])
-                            //saveInformation();
-                        } else {
-                            //saveMember();
-                        }
-                    })
-                    .catch((err) => {
-                        let errorMsg = err;
-                    });
-        */
     } else {
         $w('#BFour').enable();
         $w('#check1').focus();
@@ -224,14 +208,14 @@ async function pay(course) {
 
                         // Delete one to the total
                         await lessOne(course)
-                        
+
                         payment = "Paid";
                         await saveValuesToSheet(payment);
                         wixLocation.to('/thank-you');
                     } else if (result.status === "Error") {
                         payment = "Error";
                         await saveValuesToSheet(payment);
-						wixLocation.to('/thank-you');
+                        wixLocation.to('/thank-you');
                     }
                 });
         });
@@ -396,11 +380,11 @@ export async function getEmail() {
                     "DogDate": $w('#dob').value.toDateString(),
                     "DogBreed": $w('#breed').value,
                     "Genero": $w('#status').value,
-                    "Indicate":$w('#indicate').value,
-                    "Hear":$w('#hear').value,
-                    "Anything":$w('#anything').value,
-                    "Under15":$w('#under15').value,
-                    "Age":$w('#age').value,
+                    "Indicate": $w('#indicate').value,
+                    "Hear": $w('#hear').value,
+                    "Anything": $w('#anything').value,
+                    "Under15": $w('#under15').value,
+                    "Age": $w('#age').value,
                 }
                 console.log(json)
 
@@ -412,7 +396,7 @@ export async function getEmail() {
                     await Email_Training_Payment(json);
                     await Email_Training_Owner(json);
                     wixLocation.to('/thank-you');
-                } 
+                }
             }
         })
         .catch((err) => {
@@ -450,9 +434,37 @@ async function lessOne(course) {
 
 }
 
-export async function x() {
-    // This function was added from the Properties & Events panel. To learn more, visit http://wix.to/UcBnC-4
-    // Add your code for this event here: 
-    let payment = "Paid";
-    await saveValuesToSheet(payment);
+async function fullPeople() {
+
+    $w('#textValidation1').collapse();
+    try {
+        checkValidationOne();
+
+        if ($w('#question').value == "Yes") {
+            wixLocation.to('/behaviour');
+        } else {
+            const date = $w('#date').text;
+            const course = "L1DT"
+            const agressionQuestion = $w('#question').value;
+            const fullName = $w('#fullName').value;
+            const phone = $w('#phone').value;
+            const email = $w('#email').value;
+            const fullAddress = $w('#address').value.formatted;
+
+            let toInsert = {
+                date,
+                course,
+                fullName,
+                phone,
+                email,
+                fullAddress,
+                agressionQuestion
+            }
+            await wixData.insert('Interestedpeople', toInsert)
+            wixLocation.to("/thanks")
+        }
+    } catch (err) {
+        $w('#textValidation1').text = err.message;
+        $w('#textValidation1').expand();
+    }
 }

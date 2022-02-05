@@ -19,6 +19,7 @@ export function init() {
     $w('#BTwo').onClick(() => BTwo());
     $w('#BThree').onClick(() => BThree());
     $w('#BFour').onClick(() => BFour());
+    $w('#SubmitNoB').onClick(() => fullPeople());
 
     $w('#back2').onClick(() => BackTwo());
     $w('#back3').onClick(() => BackThree());
@@ -47,10 +48,9 @@ function getDate() {
                 $w('#numberOFPeople').text = firstItem.numberOfPeople + " left";
 
                 if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#BOne').disable();
-                    $w('#L0').text = 'The course is full come back later';
-                    $w('#textValidation1').text = 'The course is full come back later';
-                    $w('#textValidation1').expand();
+                    $w('#BOne').collapse();
+                    $w('#SubmitNoT').expand();
+                    $w('#SubmitNoB').expand();
                 }
 
             } else {
@@ -157,22 +157,6 @@ export async function BFour() {
         //await delay(2)
         $w('#Box').changeState("ThankYouMessage");
 
-        /*
-                wixData.query("Members").eq('email', $w('#email').value)
-                    .find()
-                    .then(async (results) => {
-                        if (results.items.length > 0) {
-                            results.items[0].fullName = $w('#fullName').value
-                            //await wixData.update("Members", results.items[0])
-                            //saveInformation();
-                        } else {
-                            //saveMember();
-                        }
-                    })
-                    .catch((err) => {
-                        let errorMsg = err;
-                    });
-        */
     } else {
         $w('#BFour').enable();
         $w('#check1').focus();
@@ -401,9 +385,37 @@ async function lessOne(course) {
 
 }
 
-export async function x() {
-    // This function was added from the Properties & Events panel. To learn more, visit http://wix.to/UcBnC-4
-    // Add your code for this event here: 
-    let payment = "Paid";
-    await saveValuesToSheet(payment);
+async function fullPeople() {
+
+    $w('#textValidation1').collapse();
+    try {
+        checkValidationOne();
+
+        if ($w('#question').value == "Yes") {
+            wixLocation.to('/behaviour');
+        } else {
+            const date = $w('#date').text;
+            const course = "Agility"
+            const agressionQuestion = $w('#question').value;
+            const fullName = $w('#fullName').value;
+            const phone = $w('#phone').value;
+            const email = $w('#email').value;
+            const fullAddress = $w('#address').value.formatted;
+
+            let toInsert = {
+                date,
+                course,
+                fullName,
+                phone,
+                email,
+                fullAddress,
+                agressionQuestion
+            }
+            await wixData.insert('Interestedpeople', toInsert)
+            wixLocation.to("/thanks")
+        }
+    } catch (err) {
+        $w('#textValidation1').text = err.message;
+        $w('#textValidation1').expand();
+    }
 }
