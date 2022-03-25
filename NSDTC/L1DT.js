@@ -44,13 +44,26 @@ function getDate() {
                 $w('#pricingDetails').text = 'L1DT $' + firstItem.price;
                 total = firstItem.price
                 $w('#totalPrice').text = '$' + firstItem.price;
+                $w('#cost').text = '$' + firstItem.price;
 
-                $w('#numberOFPeople').text = firstItem.numberOfPeople + " left";
+                $w('#numberOFPeople').text = "" + firstItem.numberOfPeople;
 
                 if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#BOne').collapse();
+                    $w('#BOne').disable();
+                    $w('#fullName').disable();
+                    $w('#phone').disable();
+                    $w('#email').disable();
+                    $w('#confirmEmail').disable();
+                    $w('#address').disable();
+                    $w('#question').disable();
                     $w('#SubmitNoT').expand();
-                    $w('#SubmitNoB').expand();
+
+                    /*$w('#group5').collapse();
+                    $w('#confirmEmail').collapse();
+                    $w('#address').collapse();
+                    $w('#question').collapse();
+                    
+                    $w('#SubmitNoB').expand();*/
                 }
 
             } else {
@@ -99,6 +112,11 @@ function checkValidationOne() {
     if (!$w('#address').valid) throw new Error('Missing Address');
     if (!$w('#question').valid) throw new Error('Missing Question about the aggression');
 
+}
+
+function checkValidationOneTwo() {
+    if (!$w('#fullName').valid) throw new Error('Missing Full Name');
+    if (!$w('#email').valid) throw new Error('Missing Email');
 }
 
 //	==================================================================== S E C O N D	====================================================================
@@ -183,41 +201,62 @@ function BackFour() {
 
 // ==================================================================== P A Y ====================================================================
 async function pay(course) {
-    // Step 2 - Call backend function. 
-    // (Next, see step 3 in the backend code below.)
-    createMyPayment(course, total)
-        // When the payment has been created and a paymentId has been returned:
-        .then((payment) => {
-            // Step 5 - Call the startPayment() function with the paymentId.
-            // Include PaymentOptions to customize the payment experience.
-            wixPay.startPayment(payment.id, {
-                    "showThankYouPage": false,
-                    //"termsAndConditionsLink": "https://davidcamachob.wixsite.com/nsdt/contact-nsdtc"
-                })
-                // Step 6 - Visitor enters the payment information.
-                // When the payment form is completed:
-                .then(async (result) => {
-                    // Step 7 - Handle the payment result.
-                    // (Next, see step 8 in the backend code below.)
-                    //$w('#button26').enable();
-                    let payment = "";
-                    if (result.status === "Successful") {
-                        $w('#bookButton').collapse();
-                        $w('#text35').expand();
-                        $w('#reloadThanks').expand();
 
-                        // Delete one to the total
-                        await lessOne(course)
+    wixData.query("Course")
+        .eq("course", 'L1DT')
+        .find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                $w('#numberOFPeople').text = "" + results.items[0].numberOfPeople;
 
-                        payment = "Paid";
-                        await saveValuesToSheet(payment);
-                        wixLocation.to('/thank-you');
-                    } else if (result.status === "Error") {
-                        payment = "Error";
-                        await saveValuesToSheet(payment);
-                        wixLocation.to('/thank-you');
-                    }
-                });
+                if (parseInt($w('#numberOFPeople').text) == 0) {
+                    $w('#bookButton').disable();
+                    $w('#PayNoT').expand();
+
+                } else {
+
+                    // Step 2 - Call backend function. 
+                    // (Next, see step 3 in the backend code below.)
+                    createMyPayment(course, total)
+                        // When the payment has been created and a paymentId has been returned:
+                        .then((payment) => {
+                            // Step 5 - Call the startPayment() function with the paymentId.
+                            // Include PaymentOptions to customize the payment experience.
+                            wixPay.startPayment(payment.id, {
+                                    "showThankYouPage": false,
+                                    //"termsAndConditionsLink": "https://davidcamachob.wixsite.com/nsdt/contact-nsdtc"
+                                })
+                                // Step 6 - Visitor enters the payment information.
+                                // When the payment form is completed:
+                                .then(async (result) => {
+                                    // Step 7 - Handle the payment result.
+                                    // (Next, see step 8 in the backend code below.)
+                                    //$w('#button26').enable();
+                                    let payment = "";
+                                    if (result.status === "Successful") {
+                                        $w('#bookButton').collapse();
+                                        $w('#text35').expand();
+                                        $w('#reloadThanks').expand();
+
+                                        // Delete one to the total
+                                        await lessOne(course)
+
+                                        payment = "Paid";
+                                        await saveValuesToSheet(payment);
+                                        wixLocation.to('/thank-you');
+                                    } else if (result.status === "Error") {
+                                        payment = "Error";
+                                        await saveValuesToSheet(payment);
+                                        wixLocation.to('/thank-you');
+                                    }
+                                });
+                        });
+                }
+
+            }
+        })
+        .catch((err) => {
+            let errorMsg = err;
         });
 }
 
@@ -311,7 +350,7 @@ async function saveValuesToSheet(payment) {
         };
     }
 
-    const res = await appendValuesWrapper(values, 'SheetTraining');
+    const res = await appendValuesWrapper(values, 'SheetL1DT');
     //console.log(res);
     await wixData.insert('Training', toInsert)
     // let date = new Date()
@@ -394,7 +433,7 @@ export async function getEmail() {
                     wixLocation.to('/behaviour');
                 } else {
                     await Email_Training_Payment(json);
-                    await Email_Training_Owner(json);
+                    //await Email_Training_Owner(json);
                     wixLocation.to('/thank-you');
                 }
             }
@@ -445,20 +484,14 @@ async function fullPeople() {
         } else {
             const date = $w('#date').text;
             const course = "L1DT"
-            const agressionQuestion = $w('#question').value;
             const fullName = $w('#fullName').value;
-            const phone = $w('#phone').value;
             const email = $w('#email').value;
-            const fullAddress = $w('#address').value.formatted;
 
             let toInsert = {
                 date,
                 course,
                 fullName,
-                phone,
-                email,
-                fullAddress,
-                agressionQuestion
+                email
             }
             await wixData.insert('Interestedpeople', toInsert)
             wixLocation.to("/thanks")
