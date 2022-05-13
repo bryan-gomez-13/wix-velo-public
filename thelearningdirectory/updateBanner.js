@@ -30,17 +30,20 @@ $w.onReady(async function () {
 })
 
 export function button30_click(event) {
-	$w("#dataset16").save();
-	for (let a = 0; a < orders.length; a++) { //Filter Orders by active status
+   
+    $w("#dataset16").save();
+    for (let a = 0; a < orders.length; a++) { //Filter Orders by active status
+        console.log(orders[a].id)
+        console.log($w('#dropdown1').value)
         if (orders[a].id === $w('#dropdown1').value) {
             let plan = orders[a].planId;
             var dknow = new Date();
-			console.log(dknow);
-			dknow.setDate(dknow.getDate()+7);           //7 DAYS
+            console.log(dknow);
+            dknow.setDate(dknow.getDate()+7);           //7 DAYS
             console.log(dknow);
 
-			console.log(plan);
-			console.log(dknow);
+            console.log(plan);
+            console.log(dknow);
 
             $w("#dataset16").setFieldValues({
                 "plan": plan,
@@ -51,7 +54,7 @@ export function button30_click(event) {
 
             break;
         }
-	}
+    }
 }
 
 function cancelOrderPlan(orderId) {

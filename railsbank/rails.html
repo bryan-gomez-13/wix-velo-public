@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Customer</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/" />
+
+</head>
+
+<body>
+    <script src="https://collection.passfort.com/embed.js"></script>
+    <script>
+        window.onmessage = (event) => {
+            if (event.data) {
+                if (event.data.apikey !== undefined) {
+                    //console.log("Query");
+                    //console.log(event.data)
+                    PassFortCollect.init(event.data)
+                }
+            }
+        }
+    </script>
+    <div id="collection-wrapper"></div>
+</body>
+
+</html>
