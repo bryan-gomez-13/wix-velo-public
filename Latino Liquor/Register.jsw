@@ -1,0 +1,11 @@
+import { authentication } from 'wix-members-backend';
+
+export function Register(json) {
+  return authentication.register(json.email, json.password, json.options)
+    .then((registrationResult) => {
+      return registrationResult;
+    })
+    .catch((error) => {
+      console.error(error);
+    })
+}

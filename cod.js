@@ -14,67 +14,26 @@ export function x() {
 cart.showMiniCart();
 setTimeout(() => cart.hideMiniCart(), 3000);
 
-//Guardar info en una collection para el custom signup
-$w("#dataset1").setFieldValues(
-	{
-		"firstName": $w("#input4").value,
-		"lastName": $w("#input3").value,
-		"email": $w("#input2").value,
-		"phone": $w("#input5").value,
-		"companyName": $w("#input6").value
-	});
-$w("#dataset1").save();
-
-//filter data
-
-function filterData() {
-	//valor predeterminado del filtro
-	let filter = wixData.filter();
-	//ordenar
-	let sort = wixData.sort();
-	//valore
-	let searchValue = $w('#searchMovie').value;
-	let searchKind = $w('#searchKind').value;
-	let searchYear = $w('#searchYear').value;
-	let sortValue = $w('#sort').value;
-
-	switch (s) {
-		case 1:
-			if (searchKind == 'All Movies' && searchYear.length > 0) {
-				filter = filter.eq('year', searchYear);
-			} else if (searchYear.length > 0) {
-				filter = filter.eq('kind', searchKind).and(filter.eq('year', searchYear));
-			} else if (searchKind != 'All Movies') {
-				filter = filter.eq('kind', searchKind);
-			} else {
-				filter = wixData.filter();
+// Dropdown
+function dropdowns() {
+	wixData.query("NameCollection")
+		.ascending('title')
+		.find()
+		.then((results) => {
+			let array = [{ "label": "All", "value": "All" }];
+			for (let i = 0; i < results.items.length; i++) {
+				array.push({ label: results.items[i].title, value: results.items[i].title })
 			}
-			break;
+			$w('#NameDropdown').options = array;
+		});
+}
 
-		case 2:
-			filter = filter.contains('name', searchValue);
-			break;
-	}
-
-	switch (sortValue) {
-		case 'a-z':
-			//Sort : A-Z
-			sort = sort.ascending('name');
-			break;
-
-		case 'z-a':
-			//Sort : Z-A
-			sort = sort.descending('name');
-			break;
-
-		case 'yearAse':
-			sort = sort.ascending('year');
-			break;
-
-		case 'yearDse':
-			sort = sort.descending('year');
-			break;
-	}
-	$w('#ds').setFilter(filter).then(() => $w('#ds').setSort(sort));
-	x();
+//FILTER
+function filter(){
+	let filter = wixData.filter();
+    //Name of the field
+    if($w('#field').value !== ''){
+        filter = filter.and(wixData.filter().eq("fieldKey",$w('#field').value));
+    }
+	$w('#dynamicDataset').setFilter(filter);
 }

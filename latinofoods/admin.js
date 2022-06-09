@@ -3,10 +3,18 @@ import wixData from 'wix-data';
 var array = []
 
 $w.onReady(function () {
-
+    init()
 });
 
-export async function getItems() {
+function init(){
+    $w('#bSearch').onClick(() => getElements())
+    $w('#consult').onClick(() => consult_click())
+    $w('#inStock').onChange(() => getElements())
+    $w('#inputSearch').onInput(() => getElements())
+    $w('#inventory').onInput(() => getElements())
+}
+
+async function getItems() {
     $w('#bSearch').disable();
     let results = await wixData.query("Stores/Products").limit(100).find().then();
     await checkList(results);
@@ -17,12 +25,12 @@ export async function getItems() {
     $w('#bSearch').enable();
 }
 
-export async function consult_click(event) {
+async function consult_click() {
     await getCollection();
     await getItems();
 }
 
-export async function checkList(results) {
+async function checkList(results) {
     for (let i = 0; i < results.items.length; i++) {
         if (results.items[i].additionalInfoSections != '') {
             if (results.items[i].additionalInfoSections[0].description != "N/A") {
@@ -69,7 +77,7 @@ export async function checkList(results) {
     }
 }
 
-export function saveProduct(toInsert) {
+function saveProduct(toInsert) {
     wixData.insert('BestBefore', toInsert)
         .then(() => {
             console.log("ready");
@@ -78,11 +86,7 @@ export function saveProduct(toInsert) {
         });
 }
 
-export function searchDays(event) {
-    getElements($w('#inStock').value);
-}
-
-export async function getCollection(event) {
+async function getCollection() {
     let results = await wixData.query("BestBefore").limit(100).find().then();
     //console.log(results.items.length)
     await order(results.items, array);
@@ -107,19 +111,18 @@ export function order(results, array) {
     }
 }
 
-export function inStock(event) {
-    getElements($w('#inStock').value)
-}
-
-export function getElements(Stock){
+function getElements(){
+    //$w('#table1').collapse();
     let filter = wixData.filter();
     let sort = wixData.sort();
-    let x = $w('#inputSearch').value;
-    filter = filter.le("days", parseInt(x, 10));
-    if(Stock == "Yes"){
-        filter = filter.le("days", parseInt(x, 10)).and(filter.eq("inStock",true));
-    }else if(Stock == "No"){
-        filter = filter.le("days", parseInt(x, 10)).and(filter.eq("inStock",false));
+    filter = filter.le("days", parseInt($w('#inputSearch').value, 10));
+    if($w('#inStock').value == "Yes"){
+        filter = filter.and(filter.eq("inStock",true));
+    }else if($w('#inStock').value == "No"){
+        filter = filter.and(filter.eq("inStock",false));
+    }
+    if($w('#inventory').value !== ''){
+        filter = filter.and(filter.le("inventory", parseInt($w('#inventory').value, 10)));
     }
     $w('#dataset1').setFilter(filter).then(() => $w('#dataset1').setSort(sort.ascending('days')));
     $w('#table1').expand();

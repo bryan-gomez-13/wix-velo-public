@@ -1,0 +1,32 @@
+{
+    "items": [{
+        "name": "toy plane",
+        "quantity": 5,
+        "physicalProperties": {
+            "sku": "0002",
+            "shippable": true,
+            "weight": 1
+        },
+        "price": "200"
+    }],
+    "options": {
+        "shippingDestination": {
+            "addressLine1": "26 Morningside Drive",
+            "country": "NZ",
+            "suburb": "Morningside",
+            "city": "Auckland",
+            "postalCode": "1025"
+        },
+        "shippingOrigin": {
+            "addressLine1": "3 Porters Avenue",
+            "country": "NZ",
+            "suburb": "Eden Terrace",
+            "city": "Auckland",
+            "postalCode": "1024"
+        },
+        "buyerDetails": {},
+        "weightUnit": "KG",
+        "currency": "NZD",
+        "shippingRateDecimalPlaces": 2
+    }
+}

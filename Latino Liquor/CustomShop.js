@@ -1,4 +1,4 @@
-import { decrementInventory, getProductVariants, createOrder } from 'backend/inventory';
+import { createOrder } from 'backend/inventory';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
 import wixUsers from 'wix-users';
@@ -17,7 +17,7 @@ $w.onReady(function () {
 
 function init() {
     let formFactor = wixWindow.formFactor; // "Mobile"
-    if (formFactor == "Mobile") {
+    if (formFactor !== "Desktop") {
         $w('#mobileButton2').expand();
         $w('#mobileButton2').onClick(() => $w('#filter').expand());
     }
@@ -34,8 +34,7 @@ function init() {
     $w('#quantityBox').onInput((Event) => quantityBox(Event));
     $w('#searchProduct').onClick(() => searchProduct());
     $w('#submit').onClick(() => createOrderLF());
-    $w('#addressInput1').onChange(() => zonas());
-    $w('#checkbox1').onChange(() => zonas());
+    $w('#submit').onMouseIn(() => zonas());
     $w('#filter').onChange(() => filterChange());
 
     $w("#repeater1").onItemReady(($item, itemData, index) => {
@@ -45,7 +44,7 @@ function init() {
             $item('#Add').disable();
         }
 
-        wixData.query("WholesalesProducts")
+        wixData.query("Products")
             .eq('sku', itemData.sku)
             .find()
             .then((results) => {
@@ -62,6 +61,7 @@ function init() {
                         $item('#text145').text = results.items[0].name;
                     }
                     $item('#Best').text = results.items[0].expiryDate;
+                    $item('#vWeight').text = results.items[0].weight;
                 } else {
                     $item('#price').text = "" + parseFloat(itemData.price);
                 }
@@ -95,11 +95,10 @@ function user() {
                         $w('#input12').value = firstItem.lastName;
                         $w('#input13').value = firstItem.shortAnswerField;
                         $w('#checkOutHours').value = firstItem.shortAnswerField2;
-                        $w('#checkOutComplete').text = firstItem.autocompleteAddress;
-                        $w('#checkOutAddress').text = firstItem.shortAnswerField3;
-                        $w('#checkoutCity').text = firstItem.shortAnswerField4;
-                        $w('#checkOutPostCode').text = firstItem.shortAnswerField5;
-                        $w('#checkOutCountry').text = firstItem.shortAnswerField6;
+                        $w('#formAddress').value = firstItem.shortAnswerField3;
+                        $w('#formCity').value = firstItem.shortAnswerField4;
+                        $w('#formPostCode').value = firstItem.shortAnswerField5;
+                        $w('#formCountry').value = firstItem.shortAnswerField6;
                         //$w('#addressInput1').value = firstItem.autocompleteAddress;
                     }
                 })
@@ -145,9 +144,9 @@ function filterChange() {
     let filter;
 
     if ($w('#filter').value.length == 0) {
-        filter = wixData.filter().hasSome("collections", ["00000000-000000-000000-000000000001"]).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]))
+        filter = wixData.filter().hasSome("collections", ["00000000-000000-000000-000000000001"]).and(wixData.filter().eq("collections", ["11eeee50-2bcd-974b-4a09-ffebe0c49622"]))
     } else {
-        filter = wixData.filter().hasSome("collections", $w('#filter').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]))
+        filter = wixData.filter().hasSome("collections", $w('#filter').value).and(wixData.filter().eq("collections", ["11eeee50-2bcd-974b-4a09-ffebe0c49622"]))
     }
     $w("#dataset1").setFilter(filter);
 }
@@ -194,8 +193,8 @@ async function quantity(params) {
         $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
         $item('#quantityBox').value = "0";
         $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
-        $item('#text5').expand();
-        setTimeout(() => $item('#text5').collapse(), 5000);
+        $item('#boxMessage').expand();
+        setTimeout(() => $item('#boxMessage').collapse(), 5000);
     }
 }
 
@@ -212,8 +211,8 @@ async function quantityBox(params) {
         $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
         $item('#quantityBox').value = "0";
         $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
-        $item('#text5').expand();
-        setTimeout(() => $item('#text5').collapse(), 5000);
+        $item('#boxMessage').expand();
+        setTimeout(() => $item('#boxMessage').collapse(), 5000);
     }
 }
 
@@ -248,7 +247,7 @@ function quantity2(params, itemData) {
 }
 
 function searchProduct() {
-    let filter = wixData.filter().contains('name', $w('#search').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]));
+    let filter = wixData.filter().contains('name', $w('#search').value).and(wixData.filter().eq("collections", ["11eeee50-2bcd-974b-4a09-ffebe0c49622"]));
     $w("#dataset1").setFilter(filter);
 }
 
@@ -256,11 +255,18 @@ function searchProduct() {
 function Add(event) {
     let $item = $w.at(event.context);
     let item = $item("#dataset1").getCurrentItem();
+    //console.log(item)
+    let Quantity = 0;
+    if (parseFloat($item('#totalUnits').text) == 0) {
+        Quantity = 1;
+    } else {
+        Quantity = parseFloat($item('#totalUnits').text);
+    }
     let json = {
         "_id": item._id,
         "Title": item.name,
         "sku": item.sku,
-        "Quantity": parseFloat($item('#totalUnits').text),
+        "Quantity": Quantity,
         "Price": parseFloat($item('#price').text),
         "weight": item.weight,
         "mediaItem": {
@@ -269,7 +275,7 @@ function Add(event) {
         },
         "Total": item.quantityInStock
     };
-
+    //console.log(json)
     if (arrayElements.length > 0) {
         let x = 0;
         for (let i = 0; i < arrayElements.length; i++) {
@@ -277,14 +283,14 @@ function Add(event) {
             //console.log(arrayElements[i].id, json.id)
 
             if (arrayElements[i]._id == json._id) {
-                let sum = parseFloat(arrayElements[i].Quantity) + parseFloat($item('#totalUnits').text);
+                let sum = parseFloat(arrayElements[i].Quantity) + Quantity;
                 //console.log(i, arrayElements[i].Quantity, $item('#quantity').value, sum, item.quantityInStock);
 
                 if (sum > item.quantityInStock) {
                     arrayElements[i].Quantity = item.quantityInStock;
                     $item('#text5').text = item.quantityInStock + " units in stock";
-                    $item('#text5').expand();
-                    setTimeout(() => $item('#text5').collapse(), 5000);
+                    $item('#boxMessage').expand();
+                    setTimeout(() => $item('#boxMessage').collapse(), 5000);
                     $item('#quantity').value = item.quantityInStock;
                 } else {
                     arrayElements[i].Quantity = sum;
@@ -358,7 +364,7 @@ function subtotal(arrayElements) {
 
     $w('#subtotal').text = "Total: $" + subtotalText.toFixed(2);
     $w('#text144').text = "Total: $" + subtotalText.toFixed(2);
-    $w('#input15').value = "" + subtotalText.toFixed(2);
+    $w('#Total').value = "" + subtotalText.toFixed(2);
 }
 
 function FormOrder(arrayElements) {
@@ -371,32 +377,34 @@ function FormOrder(arrayElements) {
 
 // ===================================================== CREATE ORDER =====================================================
 function zonas() {
-    if ($w('#checkbox1').checked == true) {
-
-        $w('#checkOutShippingAddress').collapse();
-        $w('#addressInput1').expand();
-        if ($w('#addressInput1').value == undefined || $w('#addressInput1').value.city == undefined && $w('#addressInput1').value.country == undefined && $w('#addressInput1').value.postalCode == undefined) {
-            $w('#submit').disable();
-            $w('#text142').text = "Please select your address in Delivery address"
-            $w('#text142').show();
-            //setTimeout(() => $w('#text142').hide(), 10000);
-        } else {
-            $w('#submit').enable();
-            $w('#text142').hide();
-            $w('#text142').text = "Thanks for submitting!";
-        }
-    } else {
-        $w('#checkOutShippingAddress').expand();
-        $w('#addressInput1').collapse();
+    try {
+        checkValidation();
+        $w('#addressInput1').value = $w('#formAddress').value + ', ' + $w('#formCity').value + ', ' + $w('#formPostCode').value + ', ' + $w('#formCountry').value
         $w('#submit').enable();
         $w('#text142').hide();
         $w('#text142').text = "Thanks for submitting!";
+    } catch (error) {
+        $w('#submit').disable();
+        $w('#text142').text = error.message
+        $w('#text142').show();
     }
+}
+
+function checkValidation() {
+    if (!$w('#input9').valid) throw new Error('Missing Email');
+    if (!$w('#input10').valid) throw new Error('Missing Phone');
+    if (!$w('#input11').valid) throw new Error('Missing First Name');
+    if (!$w('#input12').valid) throw new Error('Missing Last Name');
+
+    if (!$w('#formAddress').valid) throw new Error('Missing Address');
+    if (!$w('#formCity').valid) throw new Error('Missing City');
+    if (!$w('#formPostCode').valid) throw new Error('Missing ¨Postal Code');
+    if (!$w('#formCountry').valid) throw new Error('Missing Country');
+    if (!$w('#checkAge').valid) throw new Error('Missing Check Validation');
 }
 
 function createOrderLF() {
     $w('#submit').disable();
-
     let jsonItems = [];
 
     for (let i = 0; i < arrayElements.length; i++) {
@@ -420,33 +428,15 @@ function createOrderLF() {
     let Info = {};
     let BillingInfo = {};
 
-    if ($w('#checkbox1').checked == true) {
-
-        Info = {
-            "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
-            "shipmentDetails": {
-                "address": {
-                    "formatted": $w('#addressInput1').value.formatted,
-                    "city": $w('#addressInput1').value.city,
-                    "country": $w('#addressInput1').value.country,
-                    "addressLine": $w('#addressInput1').value.streetAddress.number + " " + $w('#addressInput1').value.streetAddress.name,
-                    "postalCode": $w('#addressInput1').value.postalCode,
-                },
-                "lastName": $w('#input12').value,
-                "firstName": $w('#input11').value,
-                "email": $w('#input9').value,
-                "phone": $w('#input10').value,
-                "company": $w('#input13').value,
-            }
-        }
-
-        BillingInfo = {
+    Info = {
+        "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
+        "shipmentDetails": {
             "address": {
-                "formatted": $w('#addressInput1').value.formatted,
-                "city": $w('#addressInput1').value.city,
-                "country": $w('#addressInput1').value.country,
-                "addressLine": $w('#addressInput1').value.streetAddress.number + " " + $w('#addressInput1').value.streetAddress.name,
-                "postalCode": $w('#addressInput1').value.postalCode
+                "formatted": $w('#formAddress').value + ', ' + $w('#formCity').value + ', ' + $w('#formPostCode').value + ', ' + $w('#formCountry').value,
+                "city": $w('#formCity').value,
+                "country": $w('#formCountry').value,
+                "addressLine": $w('#formAddress').value,
+                "postalCode": $w('#formPostCode').value,
             },
             "lastName": $w('#input12').value,
             "firstName": $w('#input11').value,
@@ -454,42 +444,21 @@ function createOrderLF() {
             "phone": $w('#input10').value,
             "company": $w('#input13').value,
         }
+    }
 
-    } else {
-
-        Info = {
-            "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
-            "shipmentDetails": {
-                "address": {
-                    "formatted": $w('#checkOutComplete').text,
-                    "city": $w('#checkoutCity').text,
-                    "country": $w('#checkOutCountry').text,
-                    "addressLine": $w('#checkOutAddress').text,
-                    "postalCode": $w('#checkOutPostCode').text,
-                },
-                "lastName": $w('#input12').value,
-                "firstName": $w('#input11').value,
-                "email": $w('#input9').value,
-                "phone": $w('#input10').value,
-                "company": $w('#input13').value,
-            }
-        }
-
-        BillingInfo = {
-            "address": {
-                "formatted": $w('#checkOutComplete').text,
-                "city": $w('#checkoutCity').text,
-                "country": $w('#checkOutCountry').text,
-                "addressLine": $w('#checkOutAddress').text,
-                "postalCode": $w('#checkOutPostCode').text,
-            },
-            "lastName": $w('#input12').value,
-            "firstName": $w('#input11').value,
-            "email": $w('#input9').value,
-            "phone": $w('#input10').value,
-            "company": $w('#input13').value,
-        }
-
+    BillingInfo = {
+        "address": {
+            "formatted": $w('#formAddress').value + ', ' + $w('#formCity').value + ', ' + $w('#formPostCode').value + ', ' + $w('#formCountry').value,
+            "city": $w('#formCity').value,
+            "country": $w('#formCountry').value,
+            "addressLine": $w('#formAddress').value,
+            "postalCode": $w('#formPostCode').value
+        },
+        "lastName": $w('#input12').value,
+        "firstName": $w('#input11').value,
+        "email": $w('#input9').value,
+        "phone": $w('#input10').value,
+        "company": $w('#input13').value,
     }
 
     let minimumOrder = {
@@ -516,7 +485,7 @@ function createOrderLF() {
             //const buyerEmail = order.buyerInfo.email;
             //console.log(order);
             setTimeout(() => {
-                wixData.query("contact11")
+                wixData.query("responsiveGridSales022")
                     .eq('email', order.billingInfo.email)
                     .descending('_createdDate')
                     .find()
@@ -524,10 +493,11 @@ function createOrderLF() {
                         if (results.items.length > 0) {
                             results.items[0].order = order.number
                             results.items[0].weight = order.totals.weight
-                            wixData.update("contact11", results.items[0])
+                            wixData.update("responsiveGridSales022", results.items[0])
                                 .then((results) => {
                                     //console.log(results)
-                                    wixLocation.to('/thank-you-wholesales');
+                                    console.log('GOOD')
+                                    //wixLocation.to('/thank-you-wholesales');
                                 })
                                 .catch((err) => {
                                     console.log(err)
@@ -561,34 +531,4 @@ function createOrderLF() {
             console.error(error);
         });
 
-}
-
-// ===================================================== REMOVE INVENTORY - DON'T USE IN THIS CASE =====================================================
-async function removeInventory() {
-    for (let i = 0; i < arrayElements.length; i++) {
-        //console.log(arrayElements[i])     
-        decrementHandler(arrayElements[i])
-    }
-    wixLocation.to('/thank-you');
-}
-
-export async function decrementHandler(decrementInfo) {
-    //let number = parseFloat(decrementInfo.Total) - parseFloat(decrementInfo.Quantity);
-    const productId = decrementInfo._id
-    let variants = await getProductVariants(productId);
-    //console.log(variants);
-
-    decrementInventory(
-            [{
-                variantId: variants[0]._id,
-                productId: productId,
-                decrementBy: parseFloat(decrementInfo.Quantity)
-            }])
-        .then(() => {
-            //console.log("Inventory decremented successfully")
-        })
-        .catch(error => {
-            // Inventory decrement failed
-            console.error(error);
-        })
 }

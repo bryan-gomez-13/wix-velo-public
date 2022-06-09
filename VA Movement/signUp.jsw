@@ -1,0 +1,55 @@
+/*	==================================================================================================================================
+	==================================================================================================================================
+	===================================== Copyright: Nasriya Software, LLC. (www.nasriya.net) ========================================
+	==================================================================================================================================
+	==================================================================================================================================
+*/
+//import { authorizeToken } from 'backend/captcha.jsw';
+import wixUsersBackend from 'wix-users-backend';
+import wixData from 'wix-data';
+
+export function signup(userData, plan, token) {
+    //return authorizeToken(token).then((result) => {
+    //if (result.type === 'authorized') {
+    return wixUsersBackend.register(userData.email, userData.password, {
+        "contactInfo": {
+            "firstName": userData.firstName,
+            "lastName": userData.lastName,
+            "Company": userData.business,
+            "loginEmail": userData.email,
+            "language": userData.locale
+        }
+    }).then((registrationResult) => {
+        return { type: 'success', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken }
+    }).catch(err => { return { type: 'registration error', message: `Registering user failed, here is the error: ${err}.` } })
+    /*
+    } else {
+        return result;
+    }
+    */
+    /*
+    }).catch(err => {
+        return { type: 'authorization error', message: `Authorization error on the backend: ${err}.` }
+    })
+    */
+}
+
+export function createOrder(purchasedPlan, selectedPlanId, id) {
+    let userId;
+    if (typeof id === 'string') { userId = id } else { userId = wixUsersBackend.currentUser.id }
+
+    let item = {
+        _owner: userId,
+        owner: userId,
+        orderId: purchasedPlan.orderId,
+        paymentId: purchasedPlan.wixPayOrderId,
+        plan: selectedPlanId
+    }
+
+    return wixData.insert('membershipOrders', item).then(async () => {
+        return Promise.resolve({ type: 'success', orderPlaced: true });
+    }).catch(err => {
+        console.error(`An error occurred when trying to create order - Error: ${err}`, err);
+        return Promise.eject(err);
+    })
+}

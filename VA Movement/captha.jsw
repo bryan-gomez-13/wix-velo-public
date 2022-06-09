@@ -1,0 +1,9 @@
+import wixCaptchaBackend from 'wix-captcha-backend';
+
+export function authorizeToken(token) {
+    return wixCaptchaBackend.authorize(token).then(() => {
+		return { type: 'authorized' }
+	}).catch(err => {
+		return { type: 'authorization error', message: `Error: CAPTCHA authorization failed: ${err}`}
+	})
+}

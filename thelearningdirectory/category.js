@@ -1,15 +1,73 @@
 import wixData from 'wix-data';
-
+var dnow = new Date();
+var id;
 $w.onReady(function () {
-	filterData();
+    filterData();
+    //bannerAbove();
+    $w('#adAboveImage').onClick(() => clicks())
 });
+// ===================================== BANNER =====================================
+function bannerAbove() {
+    //AD ABOVE
+    let filterPlan4 = wixData.query("Banner");
+    filterPlan4.eq('active', true).and(filterPlan4.ge('dateFinal', dnow)).and(filterPlan4.eq('adAbove', true)).find().then(results => {
+        let banner = results.items;
+        if (banner.length > 0) {
+            id = banner[0]._id;
+            $w('#adAboveImage').alt = banner[0].title;
+            $w('#adAboveImage').src = banner[0].image;
+            $w('#adAboveImage').link = banner[0].link;
+            $w('#adAboveTitle').text = banner[0].title;
+            $w('#adAbove').expand();
+        } else {
+            $w('#adAbove').collapse();
+        }
+    });
+}
 
-function filterData() {
-	let filter = wixData.filter();
-	let dnow = new Date();
-	filter = filter.eq('active',true).and(filter.eq('category','Lenguage & Culture')).and(filter.ge('dateFinalCourse', dnow));
-	$w('#dataset17').setFilter(filter);
-	console.log(filter);
+function clicks() {
+    wixData.query("Banner")
+        .eq('_id', id)
+        .find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                let banner = results.items[0]; //see item below
+                banner.clicks++
+                wixData.update("Banner", banner)
+                    .then((results) => {
+                        console.log(results)
+                    })
+                    .catch((err) => {
+                        console.log(err);
+                    });
+            }
+        })
+        .catch((err) => {
+            console.log(err);
+        });
+}
+// ===================================== FILTER =====================================
+export async function filterData() {
+    let filter = wixData.filter();
+    let dnow = new Date();
+    filter = filter.eq('active', true).and(filter.eq('category', 'Arts and Crafts')).and(filter.ge('dateFinalCourse', dnow));
+    await $w('#dataset17').setFilter(filter);
+    itemDateRepeater();
+}
+
+export function itemDateRepeater() {
+    $w('#dataset17').onReady(() => {
+        $w("#repeater1").forEachItem(($item, itemData, index) => {
+            let repeaterData = $w("#repeater1").data;
+            if (repeaterData[index].checkBoxDate == true) {
+                $item('#group1').show();
+                $item('#group2').hide();
+            } else {
+                $item('#group2').show();
+                $item('#group1').hide();
+            }
+        });
+    })
 }
 
 /*
