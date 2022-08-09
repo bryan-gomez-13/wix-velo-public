@@ -1,0 +1,103 @@
+import { contacts } from 'wix-crm-backend';
+import { triggeredEmails } from 'wix-crm-backend';
+import wixData from 'wix-data';
+
+// Get labels of the forms
+export async function getLabels() {
+    let queryResults = await contacts.queryLabels().find({ suppressAuth: true });
+    return queryResults.items
+}
+
+// get info of the contact
+export async function myQueryContactsFunction() {
+    let contact = [];
+    let results = await contacts.queryContacts().eq('info.emails.email', 'bryan.gh041399@gmail.com').find();
+    return results
+    contact.push(results.items)
+    while (results.hasNext()) {
+        results = await results.next();
+        contact.push(results.items)
+    }
+    return contact
+
+}
+
+// Get contact and update the labels
+export async function getContact(params) {
+
+    try {
+        let queryResults = await contacts.queryContacts().eq('info.emails.email', params).find({ suppressAuth: true });
+        //console.log('Contact Wix', queryResults)
+
+        if (queryResults.items[0]) {
+            //console.log(queryResults.items[0].info.emails[0].email)
+            //console.log(params)
+
+            setTimeout(async () => {
+                return await wixData.query("paymentForm052")
+                    .eq('email', params)
+                    .descending('_createdDate')
+                    .find()
+                    .then((results) => {
+                        if (results.items.length > 0) {
+                            //console.log('Contact Data', results.items[0])
+                            let labelkeys = ["custom.subscription"]
+                            if (results.items[0].checkboxField == true) labelkeys.push("custom.site-evaluation")
+                            if (results.items[0].checkboxField2 == true) labelkeys.push("custom.desing-inspirations")
+                            if (results.items[0].checkboxField3 == true) labelkeys.push("custom.house-land")
+
+                            //console.log('UPDATE-2', queryResults.items[0]._id, queryResults.items[0].revision, labelkeys)
+
+                            let contactIdentifiers = {
+                                contactId: queryResults.items[0]._id,
+                                revision: queryResults.items[0].revision
+                            };
+                            let contactInfo = {
+                                labelKeys: labelkeys
+                            };
+                            let options = {
+                                allowDuplicates: false,
+                                suppressAuth: true
+                            };
+
+                            //console.log('THORNEGROUP', contactIdentifiers, contactInfo)
+                            let x = true
+                            while (x) {
+                                return contacts.updateContact(contactIdentifiers, contactInfo, options)
+                                    .then((updatedContact) => {
+                                        console.log('Done', updatedContact)
+                                        x = false;
+                                        return updatedContact;
+                                    })
+                                    .catch((error) => {
+                                        console.error('ERROOOOOOOOOOOOOR', error);
+                                    });
+                            }
+
+                        } else {
+                            console.log('Bad');
+                        }
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    });
+            }, 2000);
+
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+}
+
+// Send email with the magazine
+export function email(contactId) {
+    let emailId = "magazine";
+    triggeredEmails.emailContact(emailId, contactId)
+        .then(() => {
+            console.log("Magazine Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

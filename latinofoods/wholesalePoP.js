@@ -11,13 +11,14 @@ $w.onReady(function () {
     $w('#shoppingCartIcon1').collapse();
     init();
     filterProducts();
+    slideRange()
     device();
     user();
 });
 
 function init() {
     let formFactor = wixWindow.formFactor; // "Mobile"
-    if (formFactor == "Mobile") {
+    if (formFactor !== "Desktop") {
         $w('#mobileButton2').expand();
         $w('#mobileButton2').onClick(() => $w('#filter').expand());
     }
@@ -32,48 +33,117 @@ function init() {
     $w('#Add').onClick((event) => Add(event));
     $w('#quantity').onInput((Event) => quantity(Event));
     $w('#quantityBox').onInput((Event) => quantityBox(Event));
-    $w('#searchProduct').onClick(() => searchProduct());
+    //Filters
+    $w('#searchProduct').onClick(() => filterLatino());
+    $w('#filter').onChange(() => filterLatino());
+    $w('#range').onChange(() => filterLatino());
+
     $w('#submit').onClick(() => createOrderLF());
     $w('#addressInput1').onChange(() => zonas());
     $w('#checkbox1').onChange(() => zonas());
-    $w('#filter').onChange(() => filterChange());
 
-    $w("#repeater1").onItemReady(($item, itemData, index) => {
-        //console.log(itemData)
+    $w('#sort').onChange(() => sortAsDes())
+
+    $w("#repeater1").onItemReady(async ($item, itemData, index) => {
+        console.log(itemData)
         if (itemData.inStock == false) {
             $item('#Add').label = 'Out of stock'
             $item('#Add').disable();
         }
 
-        wixData.query("WholesalesProducts")
-            .eq('sku', itemData.sku)
-            .find()
-            .then((results) => {
-                if (results.items.length > 0) {
-                    $item('#price').text = "" + parseFloat(results.items[0].price);
-                    //console.log(results.items[0].name)
-                    if (results.items[0].unitPerBox == undefined || results.items[0].unitPerBox == 0) {
-                        $item('#quantityBox').disable();
-                        $item('#Units').text = results.items[0].unitPerBox;
+        if (itemData.sku) {
+            $item('#itemSku').text = itemData.sku
+            $item('#dropVariant').collapse();
+            wixData.query("WholesalesProducts")
+                .eq('sku', itemData.sku)
+                .find()
+                .then((results) => {
+                    if (results.items.length > 0) {
+                        $item('#price').text = "" + parseFloat(results.items[0].price);
+                        //console.log(results.items[0].name)
+                        if (results.items[0].unitPerBox == undefined || results.items[0].unitPerBox == 0) {
+                            $item('#quantityBox').disable();
+                            $item('#Units').text = results.items[0].unitPerBox;
+                        } else {
+                            $item('#Units').text = results.items[0].unitPerBox;
+                        }
+                        if (results.items[0].name != undefined) {
+                            $item('#text145').text = results.items[0].name;
+                        }
+                        $item('#Best').text = results.items[0].expiryDate;
+                        $item('#vWeight').text = results.items[0].weight;
                     } else {
-                        $item('#Units').text = results.items[0].unitPerBox;
+                        $item('#price').text = "" + parseFloat(itemData.price);
                     }
-                    if (results.items[0].name != undefined) {
-                        $item('#text145').text = results.items[0].name;
-                    }
-                    $item('#Best').text = results.items[0].expiryDate;
-                } else {
-                    $item('#price').text = "" + parseFloat(itemData.price);
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
+        } else {
+            let variant = await getVariant(itemData._id);
+            console.log(variant)
+            let x = []
+
+            for (let index = 0; index < itemData.productOptions.Weight.choices.length; index++) {
+                for (let i = 0; i < variant.length; i++) {
+                    if (variant[i].stock.inStock && itemData.productOptions.Weight.choices[index].visible && variant[i].choices.Weight == itemData.productOptions.Weight.choices[index].value) x.push({ label: variant[i].choices.Weight, value: variant[i].sku })
                 }
-            })
-            .catch((err) => {
-                console.log(err);
-            });
-        $item('#Add').onClick((event) => {
-            let $item = $w.at(event.context);
-            $item('#Add').label = "✓";
-            setTimeout(() => $item('#Add').label = "Add cart", 2000);
-        })
+            }
+
+            $item('#dropVariant').options = x;
+            $item('#dropVariant').expand();
+        }
+
+        // DROP VARIANT
+        $item('#dropVariant').onChange((event) => {
+            //let $item = $w.at(event.context);
+            $item('#itemSku').text = $item('#dropVariant').value
+            //console.log($item('#dropVariant').value)
+            wixData.query("WholesalesProducts")
+                .eq('sku', $item('#dropVariant').value)
+                .find()
+                .then((results) => {
+                    console.log(results.items)
+                    if (results.items.length > 0) {
+                        $item('#price').text = "" + parseFloat(results.items[0].price);
+                        //console.log(results.items[0].name)
+                        if (results.items[0].unitPerBox == undefined || results.items[0].unitPerBox == 0) {
+                            $item('#quantityBox').disable();
+                            $item('#Units').text = results.items[0].unitPerBox;
+                        } else {
+                            $item('#Units').text = results.items[0].unitPerBox;
+                        }
+                        if (results.items[0].name != undefined) {
+                            $item('#text145').text = results.items[0].name;
+                        }
+                        $item('#Best').text = results.items[0].expiryDate;
+                        $item('#vWeight').text = results.items[0].weight;
+                        $item('#Add').enable();
+                        $item('#text147').show();
+                        $item('#price').show();
+                        $item('#text150').show();
+                        $item('#Units').show();
+                        $item('#text153').show();
+                        $item('#Best').show();
+                        $item('#tWeight').show();
+                        $item('#vWeight').show();
+                    } else {
+                        $item('#price').text = "" + parseFloat(itemData.price);
+                        $item('#Add').disable();
+                        $item('#text147').hide();
+                        $item('#price').hide();
+                        $item('#text150').hide();
+                        $item('#Units').hide();
+                        $item('#text153').hide();
+                        $item('#Best').hide();
+                        $item('#tWeight').hide();
+                        $item('#vWeight').hide();
+                    }
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
+        });
 
     });
 }
@@ -109,7 +179,7 @@ function user() {
         });
 }
 
-// ===================================================== FILTER =====================================================
+// ===================================================== DEVICE =====================================================
 function device() {
     let formFactor = wixWindow.formFactor; // "Mobile"
     if (formFactor == "Desktop") {
@@ -140,18 +210,68 @@ function filterProducts() {
         });
 }
 
-function filterChange() {
-    //console.log($w('#filter').value)
-    let filter;
+async function filterLatino() {
+    let filter = wixData.filter();
+    //Search filter
+    if ($w('#search').value.length > 0) filter = filter.and(wixData.filter().contains('name', $w('#search').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"])));
 
+    //Collection filter
     if ($w('#filter').value.length == 0) {
-        filter = wixData.filter().hasSome("collections", ["00000000-000000-000000-000000000001"]).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]))
+        filter = filter.and(wixData.filter().hasSome("collections", ["00000000-000000-000000-000000000001"]).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"])))
     } else {
-        filter = wixData.filter().hasSome("collections", $w('#filter').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]))
+        filter = filter.and(wixData.filter().hasSome("collections", $w('#filter').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"])))
     }
+
+    //price filter
+    let x = [0, $w('#range').max];
+    console.log($w('#range').value.toString() !== x.toString(), $w('#range').value.toString(), x.toString())
+    if ($w('#range').value.toString() !== x.toString()) {
+        filter = filter.and(wixData.filter().gt('price', $w('#range').value[0]))
+        filter = filter.and(wixData.filter().le("price", $w('#range').value[1]))
+        console.log('ok')
+    }
+
     $w("#dataset1").setFilter(filter);
+    sortAsDes();
 }
 
+async function slideRange() {
+    //getMaxPrice for the range slide
+    await wixData.query("Stores/Products")
+        .eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"])
+        .descending('price')
+        .find()
+        .then((results) => {
+            $w('#range').max = results.items[0].price
+            $w('#range').value = [0, results.items[0].price];
+        })
+        .catch((err) => { console.log(err); });
+}
+
+// Sort by Ascending or Descending
+function sortAsDes() {
+    switch ($w('#sort').value) {
+    case 'A-Z':
+        $w("#dataset1").setSort(wixData.sort().ascending("name"))
+        break;
+
+    case 'Z-A':
+        $w("#dataset1").setSort(wixData.sort().descending("name"))
+        break;
+
+    case 'Low - High':
+        $w("#dataset1").setSort(wixData.sort().ascending("price"))
+        break;
+
+    case 'High - Low':
+        $w("#dataset1").setSort(wixData.sort().descending("price"))
+        break;
+
+    default:
+        $w("#dataset1").setSort(wixData.sort())
+        break;
+    }
+}
 // ===================================================== BUTTONS =====================================================
 function Buttons(key) {
     switch (key) {
@@ -187,41 +307,78 @@ async function quantity(params) {
     if ($item('#Units').text == 'Units') total = parseFloat($item("#quantity").value);
     else total = (parseFloat($item('#Units').text) * parseFloat($item('#quantityBox').value)) + parseFloat($item("#quantity").value);
     $item('#totalUnits').text = "" + total;
-    //console.log(total)
-    //console.log(clickedItemData.sku);
-    if (total > parseFloat(clickedItemData.quantityInStock)) {
-        $item('#quantity').value = clickedItemData.quantityInStock;
-        $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
-        $item('#quantityBox').value = "0";
-        $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
-        $item('#text5').expand();
-        setTimeout(() => $item('#text5').collapse(), 5000);
+
+    if (clickedItemData.sku) {
+        if (total > parseFloat(clickedItemData.quantityInStock)) {
+            $item('#quantity').value = clickedItemData.quantityInStock;
+            $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
+            $item('#quantityBox').value = "1";
+            $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
+            $item('#text5').expand();
+            setTimeout(() => $item('#text5').collapse(), 5000);
+        }
+    } else {
+        let variant = await getVariant(clickedItemData._id);
+        let variantInStock = 0;
+        for (let i = 0; i < variant.length; i++) {
+            if (variant[i].sku == $item('#itemSku').text) {
+                variantInStock = variant[i].stock.quantity
+                break
+            }
+        }
+        if (total > parseFloat(variantInStock)) {
+            $item('#quantity').value = "" + variantInStock;
+            $item('#totalUnits').text = "" + variantInStock;
+            $item('#quantityBox').value = "1";
+            $item('#text5').text = variantInStock + " units in stock"
+            $item('#text5').expand();
+            setTimeout(() => $item('#text5').collapse(), 5000);
+        }
     }
+
 }
 
 async function quantityBox(params) {
     let $item = $w.at(params.context);
     let clickedItemData = $item("#dataset1").getCurrentItem();
-    //console.log(clickedItemData.sku);
     await xero($item);
     let total = (parseFloat($item('#Units').text) * parseFloat($item('#quantityBox').value)) + parseFloat($item("#quantity").value);
     $item('#totalUnits').text = "" + total;
-    //console.log(total)
-    if (total > parseFloat(clickedItemData.quantityInStock)) {
-        $item('#quantity').value = clickedItemData.quantityInStock;
-        $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
-        $item('#quantityBox').value = "0";
-        $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
-        $item('#text5').expand();
-        setTimeout(() => $item('#text5').collapse(), 5000);
+
+    if (clickedItemData.sku) {
+        if (total > parseFloat(clickedItemData.quantityInStock)) {
+            $item('#quantity').value = clickedItemData.quantityInStock;
+            $item('#totalUnits').text = "" + clickedItemData.quantityInStock;
+            $item('#quantityBox').value = "1";
+            $item('#text5').text = clickedItemData.quantityInStock + " units in stock"
+            $item('#text5').expand();
+            setTimeout(() => $item('#text5').collapse(), 5000);
+        }
+    } else {
+        let variant = await getVariant(clickedItemData._id);
+        let variantInStock = 0;
+        for (let i = 0; i < variant.length; i++) {
+            if (variant[i].sku == $item('#itemSku').text) {
+                variantInStock = variant[i].stock.quantity
+                break
+            }
+        }
+        if (total > parseFloat(variantInStock)) {
+            $item('#quantity').value = "" + variantInStock;
+            $item('#totalUnits').text = "" + variantInStock;
+            $item('#quantityBox').value = "1";
+            $item('#text5').text = variantInStock + " units in stock"
+            $item('#text5').expand();
+            setTimeout(() => $item('#text5').collapse(), 5000);
+        }
     }
 }
 
 function xero($item) {
     if (parseFloat($item("#quantity").value) < 0 || $item("#quantity").value == "") {
-        $item('#quantity').value = "0";
+        $item('#quantity').value = "1";
     } else if (parseFloat($item("#quantityBox").value) < 0 || $item("#quantityBox").value == "") {
-        $item('#quantityBox').value = "0";
+        $item('#quantityBox').value = "1";
     }
 }
 
@@ -247,72 +404,122 @@ function quantity2(params, itemData) {
     FormOrder(arrayElements);
 }
 
-function searchProduct() {
-    let filter = wixData.filter().contains('name', $w('#search').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"]));
-    $w("#dataset1").setFilter(filter);
+async function getVariant(params) {
+    let x
+    await wixData.query("Stores/Variants")
+        .eq("productId", params)
+        .find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                x = results.items
+            }
+        })
+        .catch((err) => {
+            console.log(err);
+        });
+    return x
 }
 
 // ===================================================== ADD =====================================================
-function Add(event) {
+async function Add(event) {
     let $item = $w.at(event.context);
     let item = $item("#dataset1").getCurrentItem();
-    let json = {
-        "_id": item._id,
-        "Title": item.name,
-        "sku": item.sku,
-        "Quantity": parseFloat($item('#totalUnits').text),
-        "Price": parseFloat($item('#price').text),
-        "weight": item.weight,
-        "mediaItem": {
-            "altText": item.mediaItems[0].title,
-            "src": item.mediaItems[0].src
-        },
-        "Total": item.quantityInStock
-    };
+    let x = false;
 
-    if (arrayElements.length > 0) {
-        let x = 0;
-        for (let i = 0; i < arrayElements.length; i++) {
-            //console.log(i)
-            //console.log(arrayElements[i].id, json.id)
+    if (item.sku) x = true
+    else {
+        if ($item('#dropVariant').valid) {
+            x = true;
+            $item('#Add').label = "✓";
+            setTimeout(() => $item('#Add').label = "Add cart", 2000);
+        } else {
+            $item('#text5').text = "Select Weight"
+            $item('#text5').expand();
+            //$item('#itemSku').expand()
+            setTimeout(() => $item('#text5').collapse(), 2000);
+            $item('#dropVariant').focus();
+        }
+    }
 
-            if (arrayElements[i]._id == json._id) {
-                let sum = parseFloat(arrayElements[i].Quantity) + parseFloat($item('#totalUnits').text);
-                //console.log(i, arrayElements[i].Quantity, $item('#quantity').value, sum, item.quantityInStock);
+    if (x) {
+        let Quantity = parseFloat($item('#totalUnits').text);
 
-                if (sum > item.quantityInStock) {
-                    arrayElements[i].Quantity = item.quantityInStock;
-                    $item('#text5').text = item.quantityInStock + " units in stock";
-                    $item('#text5').expand();
-                    setTimeout(() => $item('#text5').collapse(), 5000);
-                    $item('#quantity').value = item.quantityInStock;
-                } else {
-                    arrayElements[i].Quantity = sum;
+        let json = {
+            "_id": item._id,
+            "Title": item.name,
+            "sku": $item('#itemSku').text,
+            "Quantity": Quantity,
+            "Price": parseFloat($item('#price').text),
+            "weight": parseFloat($item('#vWeight').text),
+            "mediaItem": {
+                "altText": item.mediaItems[0].title,
+                "src": item.mediaItems[0].src
+            },
+            "Total": item.quantityInStock
+        };
+
+        if (!(item.sku)) {
+            let addVariant = await getVariant(item._id);
+            console.log('Variant', addVariant)
+            for (let i = 0; i < addVariant.length; i++) {
+                console.log(addVariant[i].sku, $item('#dropVariant').value)
+                if (addVariant[i].sku == $item('#dropVariant').value) {
+                    console.log(i)
+                    json.variantId = addVariant[i].variantId
+                    json.options = [{
+                        "option": "Weight",
+                        "selection": addVariant[i].choices.Weight
+                    }]
+                    //json.weight = $item('#vWeight').text
+                    break
                 }
-                $item('#quantity').value = '0';
-                $item('#quantityBox').value = "0";
-                $item('#totalUnits').text = "0";
-                x = 1;
-                break;
             }
         }
-        if (x == 0) {
-            arrayElements.push(json)
-            $item('#quantity').value = '0';
-            $item('#quantityBox').value = "0";
-            $item('#totalUnits').text = "0";
-        }
+        console.log('JSON', json)
+        if (arrayElements.length > 0) {
+            let x = 0;
+            for (let i = 0; i < arrayElements.length; i++) {
+                //console.log(i)
+                //console.log(arrayElements[i].id, json.id)
 
-    } else {
-        arrayElements.push(json);
-        $item('#quantity').value = '0';
-        $item('#quantityBox').value = "0";
-        $item('#totalUnits').text = "0";
+                if (arrayElements[i]._id == json._id) {
+                    let sum = parseFloat(arrayElements[i].Quantity) + Quantity;
+                    //console.log(i, arrayElements[i].Quantity, $item('#quantity').value, sum, item.quantityInStock);
+
+                    if (sum > item.quantityInStock) {
+                        arrayElements[i].Quantity = item.quantityInStock;
+                        $item('#text5').text = item.quantityInStock + " units in stock";
+                        $item('#text5').expand();
+                        setTimeout(() => $item('#text5').collapse(), 5000);
+                        $item('#quantity').value = item.quantityInStock;
+                    } else {
+                        arrayElements[i].Quantity = sum;
+                    }
+                    $item('#quantity').value = '1';
+                    $item('#quantityBox').value = "0";
+                    $item('#totalUnits').text = "1";
+                    x = 1;
+                    break;
+                }
+            }
+            if (x == 0) {
+                arrayElements.push(json)
+                $item('#quantity').value = '1';
+                $item('#quantityBox').value = "0";
+                $item('#totalUnits').text = "1";
+            }
+
+        } else {
+            arrayElements.push(json);
+            $item('#quantity').value = '1';
+            $item('#quantityBox').value = "0";
+            $item('#totalUnits').text = "1";
+        }
+        //console.log(arrayElements);
+        updateRepeater(arrayElements);
+        subtotal(arrayElements);
+        FormOrder(arrayElements);
     }
-    //console.log(arrayElements);
-    updateRepeater(arrayElements);
-    subtotal(arrayElements);
-    FormOrder(arrayElements);
 }
 
 function updateRepeater(arrayElements) {
@@ -400,7 +607,8 @@ function createOrderLF() {
     let jsonItems = [];
 
     for (let i = 0; i < arrayElements.length; i++) {
-        jsonItems.push({
+        console.log(arrayElements[i])
+        let json = {
             "productId": arrayElements[i]._id,
             "lineItemType": "PHYSICAL",
             "mediaItem": {
@@ -414,8 +622,15 @@ function createOrderLF() {
             "priceData": {
                 "price": arrayElements[i].Price
             }
-        })
+        }
+        if (arrayElements[i].variantId) {
+            json.variantId = arrayElements[i].variantId
+            json.options = arrayElements[i].options
+        }
+
+        jsonItems.push(json)
     }
+    console.log(jsonItems)
 
     let Info = {};
     let BillingInfo = {};

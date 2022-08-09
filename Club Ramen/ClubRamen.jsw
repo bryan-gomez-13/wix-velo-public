@@ -1,0 +1,29 @@
+import wixSecretsBackend from 'wix-secrets-backend';
+import { fetch } from 'wix-fetch';
+
+export async function getInfo(lat, lon) {
+    const ID = await wixSecretsBackend.getSecret("ClubRamenID");
+    const Key = await wixSecretsBackend.getSecret("ClubRamenKey");
+    let url = "https://api.freightways.co.nz/serviceProvider/v1/services?lat=" + lat + "&lon=" + lon + "&providerId=NW";
+
+    return fetch(url, {
+            "method": "get",
+            "headers": {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "app_id": ID,
+                "app_key": Key
+            }
+        })
+        .then((httpResponse) => {
+            if (httpResponse.ok) {
+                return httpResponse.json();
+            } else {
+                return Promise.reject("Fetch did not succeed");
+            }
+        })
+        .then(json => {
+            console.log("json", json)
+            return json
+        })
+        .catch(err => console.log(err));
+}

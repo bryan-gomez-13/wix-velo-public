@@ -31,9 +31,15 @@ function dropdowns() {
 //FILTER
 function filter(){
 	let filter = wixData.filter();
+    let sort = wixData.sort();
     //Name of the field
-    if($w('#field').value !== ''){
-        filter = filter.and(wixData.filter().eq("fieldKey",$w('#field').value));
-    }
-	$w('#dynamicDataset').setFilter(filter);
+    if ($w('#search').value !== '') filter = filter.and(wixData.filter().eq("title", $w('#search').value));
+
+	if ($w('#search').value !== '') filter = filter.and(wixData.filter().contains("title", $w('#search').value));
+
+    if ($w('#sort').value == "A-Z") sort = sort.ascending("title");
+    else sort = sort.descending("title");
+
+    $w('#dynamicDataset').setFilter(filter);
+    $w("#dynamicDataset").setSort(sort);
 }
