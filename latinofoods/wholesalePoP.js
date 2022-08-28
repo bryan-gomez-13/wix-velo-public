@@ -1,11 +1,13 @@
 import { decrementInventory, getProductVariants, createOrder } from 'backend/inventory';
+import { session } from 'wix-storage';
 import wixLocation from 'wix-location';
 import wixWindow from 'wix-window';
 import wixUsers from 'wix-users';
 import wixData from 'wix-data';
 
 var arrayElements = [];
-let subtotalText = 0;
+var subtotalText = 0;
+var submitButton = true
 
 $w.onReady(function () {
     $w('#shoppingCartIcon1').collapse();
@@ -14,18 +16,23 @@ $w.onReady(function () {
     slideRange()
     device();
     user();
+    if (session.getItem("Order")) sessionOrder()
 });
 
 function init() {
     let formFactor = wixWindow.formFactor; // "Mobile"
     if (formFactor !== "Desktop") {
         $w('#mobileButton2').expand();
-        $w('#mobileButton2').onClick(() => $w('#filter').expand());
+        $w('#mobileButton2').onClick(() => {
+            if ($w('#filter').isVisible) $w('#filter').collapse()
+            else $w('#filter').expand()
+        });
     }
     //MultiStateBox
     $w('#BOrder').onClick(() => Buttons(1));
     $w('#goToCheckout').onClick(() => Buttons(1));
     $w('#continueShopping').onClick(() => Buttons(2));
+    $w('#goBack').onClick(() => Buttons(2));
     $w('#BProducts').onClick(() => Buttons(2));
     $w('#cartPage').onClick(() => Buttons(3));
 
@@ -45,7 +52,13 @@ function init() {
     $w('#sort').onChange(() => sortAsDes())
 
     $w("#repeater1").onItemReady(async ($item, itemData, index) => {
-        console.log(itemData)
+        //IMPORTANT CONSOLE FOR TO SEE ALL THE PRODUCTS IN THE REPEATER
+        //console.log(itemData)
+
+        //Image of the repeater - Altext and tooltip
+        //$item('#image1').alt = itemData.name;
+        //$item('#image1').tooltip = itemData.name;
+
         if (itemData.inStock == false) {
             $item('#Add').label = 'Out of stock'
             $item('#Add').disable();
@@ -81,7 +94,7 @@ function init() {
                 });
         } else {
             let variant = await getVariant(itemData._id);
-            console.log(variant)
+            //console.log(variant)
             let x = []
 
             for (let index = 0; index < itemData.productOptions.Weight.choices.length; index++) {
@@ -103,7 +116,7 @@ function init() {
                 .eq('sku', $item('#dropVariant').value)
                 .find()
                 .then((results) => {
-                    console.log(results.items)
+                    //console.log(results.items)
                     if (results.items.length > 0) {
                         $item('#price').text = "" + parseFloat(results.items[0].price);
                         //console.log(results.items[0].name)
@@ -224,11 +237,11 @@ async function filterLatino() {
 
     //price filter
     let x = [0, $w('#range').max];
-    console.log($w('#range').value.toString() !== x.toString(), $w('#range').value.toString(), x.toString())
+    //console.log($w('#range').value.toString() !== x.toString(), $w('#range').value.toString(), x.toString())
     if ($w('#range').value.toString() !== x.toString()) {
         filter = filter.and(wixData.filter().gt('price', $w('#range').value[0]))
         filter = filter.and(wixData.filter().le("price", $w('#range').value[1]))
-        console.log('ok')
+        //console.log('ok')
     }
 
     $w("#dataset1").setFilter(filter);
@@ -277,6 +290,7 @@ function Buttons(key) {
     switch (key) {
     case 1:
         $w('#Box').changeState('Pay');
+        $w('#goBack').expand();
         $w('#BOrder').disable();
         $w('#cartPage').enable();
         $w('#BProducts').enable();
@@ -284,6 +298,7 @@ function Buttons(key) {
 
     case 2:
         $w('#Box').changeState('Products');
+        $w('#goBack').collapse();
         $w('#BProducts').disable();
         $w('#cartPage').enable();
         $w('#BOrder').enable();
@@ -291,6 +306,7 @@ function Buttons(key) {
 
     case 3:
         $w('#Box').changeState('CartPage');
+        $w('#goBack').expand();
         $w('#cartPage').disable();
         $w('#BProducts').enable();
         $w('#BOrder').enable();
@@ -460,11 +476,11 @@ async function Add(event) {
 
         if (!(item.sku)) {
             let addVariant = await getVariant(item._id);
-            console.log('Variant', addVariant)
+            //console.log('Variant', addVariant)
             for (let i = 0; i < addVariant.length; i++) {
-                console.log(addVariant[i].sku, $item('#dropVariant').value)
+                //console.log(addVariant[i].sku, $item('#dropVariant').value)
                 if (addVariant[i].sku == $item('#dropVariant').value) {
-                    console.log(i)
+                    //console.log(i)
                     json.variantId = addVariant[i].variantId
                     json.options = [{
                         "option": "Weight",
@@ -475,7 +491,7 @@ async function Add(event) {
                 }
             }
         }
-        console.log('JSON', json)
+        //console.log('JSON', json)
         if (arrayElements.length > 0) {
             let x = 0;
             for (let i = 0; i < arrayElements.length; i++) {
@@ -516,10 +532,40 @@ async function Add(event) {
             $item('#totalUnits').text = "1";
         }
         //console.log(arrayElements);
+        separatorArrayToString(arrayElements)
         updateRepeater(arrayElements);
         subtotal(arrayElements);
         FormOrder(arrayElements);
     }
+}
+
+async function sessionOrder() {
+    arrayElements = await JsonToArray(session.getItem("Order").split('-Latino-'))
+    //console.log('ok',arrayElements)
+
+    updateRepeater(arrayElements);
+    subtotal(arrayElements);
+    FormOrder(arrayElements);
+}
+
+function separatorArrayToString(array) {
+    let sessionOrder = ""
+
+    for (let i = 0; i < array.length; i++) {
+        if (i == (array.length - 1)) sessionOrder += JSON.stringify(array[i])
+        else sessionOrder += JSON.stringify(array[i]) + "-Latino-"
+    }
+    //console.log(array[0])
+    session.setItem("Order", sessionOrder);
+}
+
+function JsonToArray(Order) {
+    let finishArray = []
+    for (let i = 0; i < Order.length; i++) {
+        finishArray.push(JSON.parse(Order[i]));
+    }
+    //console.log('Finish', finishArray)
+    return finishArray
 }
 
 function updateRepeater(arrayElements) {
@@ -601,51 +647,129 @@ function zonas() {
     }
 }
 
-function createOrderLF() {
-    $w('#submit').disable();
+async function createOrderLF() {
+    if (submitButton) {
+        submitButton = false
 
-    let jsonItems = [];
+        $w('#submit').disable();
 
-    for (let i = 0; i < arrayElements.length; i++) {
-        console.log(arrayElements[i])
-        let json = {
-            "productId": arrayElements[i]._id,
-            "lineItemType": "PHYSICAL",
-            "mediaItem": {
-                "altText": arrayElements[i].mediaItem.altText,
-                "src": arrayElements[i].mediaItem.src
-            },
-            "name": arrayElements[i].Title,
-            "quantity": arrayElements[i].Quantity,
-            "sku": arrayElements[i].sku,
-            "weight": arrayElements[i].weight,
-            "priceData": {
-                "price": arrayElements[i].Price
+        let jsonItems = [];
+        let badProducts = []
+
+        for (let i = 0; i < arrayElements.length; i++) {
+            //console.log(arrayElements[i])
+            if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
+                console.log(1)
+
+                wixData.query("WholesalesProducts")
+                    .eq('sku', arrayElements[i].sku)
+                    .find()
+                    .then((results) => {
+                        if (results.items.length > 0) {
+                            console.log(results.items[0])
+                            if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
+                                arrayElements[i].Price = parseFloat(results.items[0].price)
+                                arrayElements[i].weight = parseFloat(results.items[0].weight)
+                            } else {
+                                wixData.query("Stores/Products")
+                                    .eq('_id', arrayElements[i]._id)
+                                    .find()
+                                    .then((results) => {
+                                        console.log(results.items[0])
+                                        if (results.items.length > 0) {
+                                            arrayElements[i].Price = results.items[0].price
+                                            arrayElements[i].weight = results.items[0].weight
+                                            badProducts.push(arrayElements[i].Title)
+                                        }
+                                    })
+                                    .catch((err) => {
+                                        console.log(err);
+                                    });
+                            }
+                        } else {
+                            wixData.query("Stores/Products")
+                                .eq('_id', arrayElements[i]._id)
+                                .find()
+                                .then((results) => {
+                                    console.log(results.items[0])
+                                    if (results.items.length > 0) {
+                                        arrayElements[i].Price = results.items[0].price
+                                        arrayElements[i].weight = results.items[0].weight
+                                        badProducts.push(arrayElements[i].Title)
+                                    }
+                                })
+                                .catch((err) => {
+                                    console.log(err);
+                                });
+                        }
+                    })
+                    .catch((err) => {
+                        console.log(err);
+                    });
             }
+
+            let json = {
+                "productId": arrayElements[i]._id,
+                "lineItemType": "PHYSICAL",
+                "mediaItem": {
+                    "altText": arrayElements[i].mediaItem.altText,
+                    "src": arrayElements[i].mediaItem.src
+                },
+                "name": arrayElements[i].Title,
+                "quantity": arrayElements[i].Quantity,
+                "sku": arrayElements[i].sku,
+                "weight": arrayElements[i].weight,
+                "priceData": {
+                    "price": arrayElements[i].Price
+                }
+            }
+            if (arrayElements[i].variantId) {
+                json.variantId = arrayElements[i].variantId
+                json.options = arrayElements[i].options
+            }
+
+            jsonItems.push(json)
         }
-        if (arrayElements[i].variantId) {
-            json.variantId = arrayElements[i].variantId
-            json.options = arrayElements[i].options
+        //console.log(jsonItems)
+
+        await subtotal(arrayElements);
+
+        let Info = {};
+        let BillingInfo = {};
+
+        //Message in the order 
+        let message = "\n"
+        for (let i = 0; i < badProducts.length; i++) {
+            message += badProducts[i] + " to be verifed\n"
         }
 
-        jsonItems.push(json)
-    }
-    console.log(jsonItems)
+        if ($w('#checkbox1').checked == true) {
 
-    let Info = {};
-    let BillingInfo = {};
+            Info = {
+                "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
+                "shipmentDetails": {
+                    "address": {
+                        "formatted": $w('#addressInput1').value.formatted,
+                        "city": $w('#addressInput1').value.city,
+                        "country": $w('#addressInput1').value.country,
+                        "addressLine": $w('#addressInput1').value.streetAddress.number + " " + $w('#addressInput1').value.streetAddress.name,
+                        "postalCode": $w('#addressInput1').value.postalCode,
+                    },
+                    "lastName": $w('#input12').value,
+                    "firstName": $w('#input11').value,
+                    "email": $w('#input9').value,
+                    "phone": $w('#input10').value,
+                    "company": $w('#input13').value,
+                }
+            }
 
-    if ($w('#checkbox1').checked == true) {
-
-        Info = {
-            "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
-            "shipmentDetails": {
+            BillingInfo = {
                 "address": {
                     "formatted": $w('#addressInput1').value.formatted,
                     "city": $w('#addressInput1').value.city,
                     "country": $w('#addressInput1').value.country,
                     "addressLine": $w('#addressInput1').value.streetAddress.number + " " + $w('#addressInput1').value.streetAddress.name,
-                    "postalCode": $w('#addressInput1').value.postalCode,
+                    "postalCode": $w('#addressInput1').value.postalCode
                 },
                 "lastName": $w('#input12').value,
                 "firstName": $w('#input11').value,
@@ -653,28 +777,28 @@ function createOrderLF() {
                 "phone": $w('#input10').value,
                 "company": $w('#input13').value,
             }
-        }
 
-        BillingInfo = {
-            "address": {
-                "formatted": $w('#addressInput1').value.formatted,
-                "city": $w('#addressInput1').value.city,
-                "country": $w('#addressInput1').value.country,
-                "addressLine": $w('#addressInput1').value.streetAddress.number + " " + $w('#addressInput1').value.streetAddress.name,
-                "postalCode": $w('#addressInput1').value.postalCode
-            },
-            "lastName": $w('#input12').value,
-            "firstName": $w('#input11').value,
-            "email": $w('#input9').value,
-            "phone": $w('#input10').value,
-            "company": $w('#input13').value,
-        }
+        } else {
 
-    } else {
+            Info = {
+                "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
+                "shipmentDetails": {
+                    "address": {
+                        "formatted": $w('#checkOutComplete').text,
+                        "city": $w('#checkoutCity').text,
+                        "country": $w('#checkOutCountry').text,
+                        "addressLine": $w('#checkOutAddress').text,
+                        "postalCode": $w('#checkOutPostCode').text,
+                    },
+                    "lastName": $w('#input12').value,
+                    "firstName": $w('#input11').value,
+                    "email": $w('#input9').value,
+                    "phone": $w('#input10').value,
+                    "company": $w('#input13').value,
+                }
+            }
 
-        Info = {
-            "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
-            "shipmentDetails": {
+            BillingInfo = {
                 "address": {
                     "formatted": $w('#checkOutComplete').text,
                     "city": $w('#checkoutCity').text,
@@ -688,94 +812,80 @@ function createOrderLF() {
                 "phone": $w('#input10').value,
                 "company": $w('#input13').value,
             }
+
         }
 
-        BillingInfo = {
-            "address": {
-                "formatted": $w('#checkOutComplete').text,
-                "city": $w('#checkoutCity').text,
-                "country": $w('#checkOutCountry').text,
-                "addressLine": $w('#checkOutAddress').text,
-                "postalCode": $w('#checkOutPostCode').text,
+        let minimumOrder = {
+            "lineItems": jsonItems,
+            "totals": {
+                "subtotal": subtotalText,
+                "total": subtotalText
             },
-            "lastName": $w('#input12').value,
-            "firstName": $w('#input11').value,
-            "email": $w('#input9').value,
-            "phone": $w('#input10').value,
-            "company": $w('#input13').value,
+            "channelInfo": {
+                "type": "WEB"
+            },
+            "paymentStatus": "NOT_PAID",
+            "buyerNote": "\nWHOLESALE\nDelivery Intructions\n" + $w('#textBox2').value + "\n\nBusinnes Hours\n" + $w('#checkOutHours').value + message,
+            "shippingInfo": Info,
+            "billingInfo": BillingInfo
         }
+        //console.log(minimumOrder)
+        //console.log(subtotalText);
 
-    }
+        createOrder(minimumOrder)
+            .then((order) => {
+                // Order created
+                //const newOrderId = order._id;
+                //const buyerEmail = order.buyerInfo.email;
+                //console.log(order);
+                setTimeout(() => {
+                    session.removeItem("Order");
+                    wixData.query("contact11")
+                        .eq('email', order.billingInfo.email)
+                        .descending('_createdDate')
+                        .find()
+                        .then((results) => {
+                            if (results.items.length > 0) {
+                                results.items[0].order = order.number
+                                results.items[0].weight = order.totals.weight
+                                wixData.update("contact11", results.items[0])
+                                    .then((results) => {
+                                        //console.log(results)
+                                        wixLocation.to('/thank-you-wholesales');
+                                    })
+                                    .catch((err) => {
+                                        console.log(err)
+                                    });
+                            } else {
+                                // handle case where no matching items found
+                            }
+                        })
+                        .catch((err) => {
+                            console.log(err)
+                        });
+                }, 2000);
 
-    let minimumOrder = {
-        "lineItems": jsonItems,
-        "totals": {
-            "subtotal": subtotalText,
-            "total": subtotalText
-        },
-        "channelInfo": {
-            "type": "WEB"
-        },
-        "paymentStatus": "NOT_PAID",
-        "buyerNote": "\nWHOLESALE\nDelivery Intructions\n" + $w('#textBox2').value + "\n\nBusinnes Hours\n" + $w('#checkOutHours').value,
-        "shippingInfo": Info,
-        "billingInfo": BillingInfo
-    }
-    //console.log(minimumOrder)
-    //console.log(subtotalText);
+                //console.log(newOrderId, buyerEmail)
+            })
+            .catch((error) => {
+                // Order not created
+                let json = {
+                    "title": "Wholesales",
+                    "idk": $w('#input9').value,
+                    "order": minimumOrder,
+                    "error": error
+                };
 
-    createOrder(minimumOrder)
-        .then((order) => {
-            // Order created
-            //const newOrderId = order._id;
-            //const buyerEmail = order.buyerInfo.email;
-            //console.log(order);
-            setTimeout(() => {
-                wixData.query("contact11")
-                    .eq('email', order.billingInfo.email)
-                    .descending('_createdDate')
-                    .find()
+                wixData.insert("CatchErrorsLF", json)
                     .then((results) => {
-                        if (results.items.length > 0) {
-                            results.items[0].order = order.number
-                            results.items[0].weight = order.totals.weight
-                            wixData.update("contact11", results.items[0])
-                                .then((results) => {
-                                    //console.log(results)
-                                    wixLocation.to('/thank-you-wholesales');
-                                })
-                                .catch((err) => {
-                                    console.log(err)
-                                });
-                        } else {
-                            // handle case where no matching items found
-                        }
+                        let item = results; //see item below
                     })
                     .catch((err) => {
                         console.log(err)
                     });
-            }, 2000);
-
-            //console.log(newOrderId, buyerEmail)
-        })
-        .catch((error) => {
-            // Order not created
-            let json = {
-                "title": "Wholesales",
-                "idk": $w('#input9').value,
-                "error": error
-            };
-
-            wixData.insert("CatchErrorsLF", json)
-                .then((results) => {
-                    let item = results; //see item below
-                })
-                .catch((err) => {
-                    console.log(err)
-                });
-            console.error(error);
-        });
-
+                console.error(error);
+            });
+    }else $w('#submit').disable();
 }
 
 // ===================================================== REMOVE INVENTORY - DON'T USE IN THIS CASE =====================================================

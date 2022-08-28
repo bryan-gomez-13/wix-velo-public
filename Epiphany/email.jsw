@@ -1,0 +1,13 @@
+import { triggeredEmails } from 'wix-crm-backend';
+
+// Send email with the magazine
+export function email(contactId) {
+    let emailId = "TrainingSession";
+    triggeredEmails.emailContact(emailId, contactId)
+        .then(() => {
+            console.log("Email Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

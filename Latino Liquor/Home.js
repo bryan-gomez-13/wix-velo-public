@@ -16,7 +16,7 @@ function filter() {
 // ================================================== DROPDOWN ==================================================
 async function Cities() {
     await wixData.query("Cities")
-        .ascending("cityName")
+        .ascending("nameCity")
         .find()
         .then((results) => {
             let options = [{ "label": "All", "value": "All" }];
