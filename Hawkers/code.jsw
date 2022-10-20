@@ -1,0 +1,30 @@
+import wixSecretsBackend from 'wix-secrets-backend';
+import { fetch } from 'wix-fetch';
+
+export async function geoLocation(lat,lng) {
+    const ApiKey = await wixSecretsBackend.getSecret("GoogleApiKey");
+    //{ "lat": -36.87855, "lng": 174.7352555 } AUCKLAND
+    let x = lat+','+lng
+    let json = await fetch("https://maps.googleapis.com/maps/api/geocode/json?latlng="+x+"&key="+ApiKey, {
+            "method": "get",
+        })
+        .then((httpResponse) => {
+            console.log(httpResponse)
+            if (httpResponse.ok) {
+                //console.log('JSON1',httpResponse.json())
+                return httpResponse.json();
+
+            } else {
+                return Promise.reject("Fetch did not succeed");
+            }
+        })
+        .then((json) => {
+            console.log('JSON', json)
+            console.log(json.results[0].formatted_address)
+            return json
+        })
+        .catch(err => console.log(err));
+
+    console.log(json)
+    return json;
+}

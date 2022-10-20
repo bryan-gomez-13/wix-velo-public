@@ -43,3 +43,33 @@ function filter(){
     $w('#dynamicDataset').setFilter(filter);
     $w("#dynamicDataset").setSort(sort);
 }
+
+//EMAIL
+import { triggeredEmails } from 'wix-crm-backend';
+export function email(User) {
+    let emailId = "";
+    if(User.systemStatus == "Aprobado") emailId = "aprobado"
+    else if(User.systemStatus == "Pendiente") emailId = "pendiente"
+    else if(User.systemStatus == "Negado") emailId = "negado"
+    
+    //Yourweb
+    const memberYourweb = "62bed798-b3b1-484e-a1b0-d2f8ec07de90";
+    //Other
+    //const LinkAndLearn = "bb267783-8633-4b06-8687-8e18f840f62b";
+    const options = {
+        variables: {
+            user: User["1ErNombre"] + " " + User["1ErApellido"],
+            criminal: User.criminalRecord,
+            legal: User.legalRecords,
+            credit: User.creditScore,
+        }
+    }
+
+    triggeredEmails.emailMember(emailId, memberYourweb, options)
+        .then(() => {
+            console.log("Email Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

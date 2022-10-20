@@ -1,11 +1,18 @@
 import wixData from 'wix-data';
+import wixLocation from 'wix-location';
 
 $w.onReady(function () {
-    init()
+    init();
 });
 
 function init() {
     $w('#search').onInput(() => filter())
+    $w('Image').onClick((event) => {
+        let $item = $w.at(event.context);
+        let item = $item("#dynamicDataset").getCurrentItem();
+        console.log(item['link-speakers-title']),
+            wixLocation.to(item['link-speakers-title'])
+    })
 }
 
 function filter() {

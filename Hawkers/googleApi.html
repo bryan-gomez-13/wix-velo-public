@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Google Maps GeoCoding</title>
+  </head>
+  <body>
+    <header>
+      <h1>Reverse GeoCoding with Google Maps</h1>
+    </header>
+    <!-- write some stuff about a place here -->
+    <script>
+      const KEY = "AIzaSyAOQNyNqwuqAdQTzFzSwilb5ry-g0eWvzY";
+      const LAT = 3.2617962;
+      const LNG = -76.5345831;
+      let url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${LAT},${LNG}&key=${KEY}`;
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          console.log(data);
+        })
+        .catch(err => console.warn(err.message));
+    </script>
+  </body>
+</html>

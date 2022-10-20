@@ -44,6 +44,7 @@ function init() {
     $w('#searchProduct').onClick(() => filterLatino());
     $w('#filter').onChange(() => filterLatino());
     $w('#range').onChange(() => filterLatino());
+    $w('#search').onKeyPress((event) => { if (event.key == 'Enter') filterLatino() })
 
     $w('#submit').onClick(() => createOrderLF());
     $w('#addressInput1').onChange(() => zonas());
@@ -53,7 +54,8 @@ function init() {
 
     $w("#repeater1").onItemReady(async ($item, itemData, index) => {
         //IMPORTANT CONSOLE FOR TO SEE ALL THE PRODUCTS IN THE REPEATER
-        //console.log(itemData)
+        console.log(itemData)
+        console.log(itemData.sku)
 
         //Image of the repeater - Altext and tooltip
         //$item('#image1').alt = itemData.name;
@@ -72,6 +74,7 @@ function init() {
                 .find()
                 .then((results) => {
                     if (results.items.length > 0) {
+                        $item('#alertErrorSKU').collapse();
                         $item('#price').text = "" + parseFloat(results.items[0].price);
                         //console.log(results.items[0].name)
                         if (results.items[0].unitPerBox == undefined || results.items[0].unitPerBox == 0) {
@@ -84,9 +87,20 @@ function init() {
                             $item('#text145').text = results.items[0].name;
                         }
                         $item('#Best').text = results.items[0].expiryDate;
-                        $item('#vWeight').text = results.items[0].weight;
+                        let weightFloat = "";
+                        if (parseFloat(results.items[0].weight) < 1) weightFloat = results.items[0].weight * 1000 + '(g/ml)'
+                        else weightFloat = results.items[0].weight + 'Kg/L'
+                        $item('#vWeight').text = weightFloat
                     } else {
                         $item('#price').text = "" + parseFloat(itemData.price);
+                        //hide
+                        $item('#text153').hide();
+                        $item('#Best').hide();
+                        $item('#tWeight').hide();
+                        $item('#vWeight').hide();
+                        $item('#text150').hide();
+                        $item('#Units').hide();
+                        $item('#alertErrorSKU').expand();
                     }
                 })
                 .catch((err) => {
@@ -97,9 +111,19 @@ function init() {
             //console.log(variant)
             let x = []
 
-            for (let index = 0; index < itemData.productOptions.Weight.choices.length; index++) {
-                for (let i = 0; i < variant.length; i++) {
-                    if (variant[i].stock.inStock && itemData.productOptions.Weight.choices[index].visible && variant[i].choices.Weight == itemData.productOptions.Weight.choices[index].value) x.push({ label: variant[i].choices.Weight, value: variant[i].sku })
+            if (itemData.productOptions.Weight) {
+                for (let index = 0; index < itemData.productOptions.Weight.choices.length; index++) {
+                    for (let i = 0; i < variant.length; i++) {
+                        if (variant[i].stock.inStock && itemData.productOptions.Weight.choices[index].visible && variant[i].choices.Weight == itemData.productOptions.Weight.choices[index].value) x.push({ label: variant[i].choices.Weight, value: variant[i].sku })
+                    }
+                }
+            }
+
+            if (itemData.productOptions.Flavour) {
+                for (let index = 0; index < itemData.productOptions.Flavour.choices.length; index++) {
+                    for (let i = 0; i < variant.length; i++) {
+                        if (variant[i].stock.inStock && itemData.productOptions.Flavour.choices[index].visible && variant[i].choices.Flavour == itemData.productOptions.Flavour.choices[index].value) x.push({ label: variant[i].choices.Flavour, value: variant[i].sku })
+                    }
                 }
             }
 
@@ -130,7 +154,10 @@ function init() {
                             $item('#text145').text = results.items[0].name;
                         }
                         $item('#Best').text = results.items[0].expiryDate;
-                        $item('#vWeight').text = results.items[0].weight;
+                        let weightFloat = "";
+                        if (parseFloat(results.items[0].weight) < 1) weightFloat = results.items[0].weight * 1000 + '(g/ml)'
+                        else weightFloat = results.items[0].weight + '(Kg/L)'
+                        $item('#vWeight').text = weightFloat;
                         $item('#Add').enable();
                         $item('#text147').show();
                         $item('#price').show();
@@ -404,8 +431,12 @@ function quantity2(params, itemData) {
     //console.log(quantity)
     //console.log(itemData)
 
-    if (parseFloat(quantity) > parseFloat(itemData.Total)) {
-        $item('#input8').value = itemData.Total;
+    let maxProduct = 0;
+    if (itemData.stockVariant) maxProduct = itemData.stockVariant
+    else maxProduct = itemData.quantityInStock
+
+    if (parseFloat(quantity) > parseFloat(maxProduct)) {
+        $item('#input8').value = '' + maxProduct;
     } else if (parseFloat(quantity) <= 0) {
         $item('#input8').value = "1";
     }
@@ -438,18 +469,22 @@ async function getVariant(params) {
 
 // ===================================================== ADD =====================================================
 async function Add(event) {
+    //console.log("Before", arrayElements);
     let $item = $w.at(event.context);
     let item = $item("#dataset1").getCurrentItem();
     let x = false;
 
-    if (item.sku) x = true
-    else {
+    if (item.sku) {
+        x = true
+        $item('#Add').label = "✓";
+        setTimeout(() => $item('#Add').label = "Add cart", 2000);
+    } else {
         if ($item('#dropVariant').valid) {
             x = true;
             $item('#Add').label = "✓";
             setTimeout(() => $item('#Add').label = "Add cart", 2000);
         } else {
-            $item('#text5').text = "Select Weight"
+            $item('#text5').text = "Select Option"
             $item('#text5').expand();
             //$item('#itemSku').expand()
             setTimeout(() => $item('#text5').collapse(), 2000);
@@ -462,6 +497,7 @@ async function Add(event) {
 
         let json = {
             "_id": item._id,
+            "productId": item._id,
             "Title": item.name,
             "sku": $item('#itemSku').text,
             "Quantity": Quantity,
@@ -482,9 +518,24 @@ async function Add(event) {
                 if (addVariant[i].sku == $item('#dropVariant').value) {
                     //console.log(i)
                     json.variantId = addVariant[i].variantId
+                    json.stockVariant = addVariant[i].stock.quantity
+                    let nameVariant = "";
+                    for (let i = 0; i < $item('#dropVariant').options.length; i++) {
+                        if ($item('#dropVariant').options[i].value == $item('#dropVariant').value) {
+                            nameVariant = $item('#dropVariant').options[i].label
+                            break
+                        }
+                    }
+                    json.Title += " " + nameVariant
+                    let bgh = nameVariant.split(" ")
+                    json._id += bgh[0]
+                    let nameOption = "";
+                    for (var key in item.productOptions) {
+                        nameOption = key
+                    }
                     json.options = [{
-                        "option": "Weight",
-                        "selection": addVariant[i].choices.Weight
+                        "option": nameOption,
+                        "selection": nameVariant
                     }]
                     //json.weight = $item('#vWeight').text
                     break
@@ -498,40 +549,34 @@ async function Add(event) {
                 //console.log(i)
                 //console.log(arrayElements[i].id, json.id)
 
-                if (arrayElements[i]._id == json._id) {
+                if (arrayElements[i].productId == json.productId && arrayElements[i].sku == json.sku) {
                     let sum = parseFloat(arrayElements[i].Quantity) + Quantity;
                     //console.log(i, arrayElements[i].Quantity, $item('#quantity').value, sum, item.quantityInStock);
+                    let maxProduct = 0;
+                    if (json.stockVariant) maxProduct = json.stockVariant
+                    else maxProduct = item.quantityInStock
 
-                    if (sum > item.quantityInStock) {
-                        arrayElements[i].Quantity = item.quantityInStock;
-                        $item('#text5').text = item.quantityInStock + " units in stock";
+                    if (sum > maxProduct) {
+                        arrayElements[i].Quantity = maxProduct;
+                        $item('#text5').text = maxProduct + " units in stock";
                         $item('#text5').expand();
                         setTimeout(() => $item('#text5').collapse(), 5000);
-                        $item('#quantity').value = item.quantityInStock;
+                        $item('#quantity').value = '' + maxProduct;
                     } else {
                         arrayElements[i].Quantity = sum;
                     }
-                    $item('#quantity').value = '1';
-                    $item('#quantityBox').value = "0";
-                    $item('#totalUnits').text = "1";
+
                     x = 1;
                     break;
                 }
             }
-            if (x == 0) {
-                arrayElements.push(json)
-                $item('#quantity').value = '1';
-                $item('#quantityBox').value = "0";
-                $item('#totalUnits').text = "1";
-            }
+            if (x == 0) arrayElements.push(json)
+        } else arrayElements.push(json);
 
-        } else {
-            arrayElements.push(json);
-            $item('#quantity').value = '1';
-            $item('#quantityBox').value = "0";
-            $item('#totalUnits').text = "1";
-        }
-        //console.log(arrayElements);
+        //console.log("After", arrayElements);
+        $item('#quantity').value = '1';
+        $item('#quantityBox').value = "0";
+        $item('#totalUnits').text = "1";
         separatorArrayToString(arrayElements)
         updateRepeater(arrayElements);
         subtotal(arrayElements);
@@ -541,7 +586,7 @@ async function Add(event) {
 
 async function sessionOrder() {
     arrayElements = await JsonToArray(session.getItem("Order").split('-Latino-'))
-    //console.log('ok',arrayElements)
+    console.log('ok', arrayElements)
 
     updateRepeater(arrayElements);
     subtotal(arrayElements);
@@ -557,6 +602,7 @@ function separatorArrayToString(array) {
     }
     //console.log(array[0])
     session.setItem("Order", sessionOrder);
+
 }
 
 function JsonToArray(Order) {
@@ -569,14 +615,17 @@ function JsonToArray(Order) {
 }
 
 function updateRepeater(arrayElements) {
+    //console.log('ARRAY', arrayElements)
     $w("#RPay").data = arrayElements;
     $w("#RPay").forEachItem(($item, itemData, index) => {
+        $item('#imageCartPage').src = itemData.mediaItem.src
+        $item('#imageCartPage').alt = itemData.mediaItem.title
         $item("#RPayProduct").text = itemData.Title;
         //$item("#RPayQuantity").text = "" + itemData.Quantity;
         $item("#input8").value = itemData.Quantity;
         $item("#RPayPrice").text = "" + itemData.Price;
         //$item("#RPayProduct").onClick(() => console.log(itemData));
-        $item("#close").onClick(() => remove(itemData._id));
+        $item("#close").onClick(() => remove(itemData));
         $item("#input8").onInput((event) => {
             quantity2(event, itemData);
         })
@@ -584,9 +633,9 @@ function updateRepeater(arrayElements) {
     $w("#RBPay").expand();
 }
 
-function remove(id) {
+function remove(itemData) {
     for (let i = 0; i < arrayElements.length; i++) {
-        if (arrayElements[i]._id == id) {
+        if (arrayElements[i]._id == itemData._id && arrayElements[i].sku == itemData.sku) {
             arrayElements.splice(i, 1);
             updateRepeater(arrayElements);
             break;
@@ -650,8 +699,8 @@ function zonas() {
 async function createOrderLF() {
     if (submitButton) {
         submitButton = false
-
         $w('#submit').disable();
+        $w('#loading').expand();
 
         let jsonItems = [];
         let badProducts = []
@@ -709,18 +758,18 @@ async function createOrderLF() {
             }
 
             let json = {
-                "productId": arrayElements[i]._id,
+                "productId": arrayElements[i].productId,
                 "lineItemType": "PHYSICAL",
                 "mediaItem": {
                     "altText": arrayElements[i].mediaItem.altText,
                     "src": arrayElements[i].mediaItem.src
                 },
                 "name": arrayElements[i].Title,
-                "quantity": arrayElements[i].Quantity,
+                "quantity": parseFloat(arrayElements[i].Quantity),
                 "sku": arrayElements[i].sku,
-                "weight": arrayElements[i].weight,
+                "weight": parseFloat(arrayElements[i].weight),
                 "priceData": {
-                    "price": arrayElements[i].Price
+                    "price": parseFloat(arrayElements[i].Price)
                 }
             }
             if (arrayElements[i].variantId) {
@@ -885,7 +934,7 @@ async function createOrderLF() {
                     });
                 console.error(error);
             });
-    }else $w('#submit').disable();
+    } else $w('#submit').disable();
 }
 
 // ===================================================== REMOVE INVENTORY - DON'T USE IN THIS CASE =====================================================

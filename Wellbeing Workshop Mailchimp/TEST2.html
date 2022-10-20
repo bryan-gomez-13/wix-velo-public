@@ -1,0 +1,56 @@
+<html>
+
+<head>
+    <style>
+        .button {
+            background-color: #155DE9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            font-family: 'Arial';
+        }
+
+        .label {
+            font-family: 'Arial';
+        }
+
+        .input {
+            font-size: 14px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <span id="theLabel" class="label">HTML Label</span>
+    <br /><br />
+    <button id="send" type="button" class="button">Send Message </button>
+    <br /><br />
+    <input type="text" class="input" id="theMessage">
+
+
+    <script type="text/javascript">
+        let text = document.querySelector('#theLabel');
+        let input = document.querySelector('#theMessage');
+        let button = document.querySelector('button');
+
+        document.getElementById("send").addEventListener("click", sendMessage);
+
+        function sendMessage() {
+            window.parent.postMessage('Hello0', "*");
+        }
+
+        function sendReturnMessage() {
+            window.parent.postMessage('Hello2', "*");
+        }
+
+        window.addEventListener('message', event => {
+            text.innerText = event.data;
+            sendReturnMessage();
+        });
+    </script>
+
+</body>
+
+</html>
