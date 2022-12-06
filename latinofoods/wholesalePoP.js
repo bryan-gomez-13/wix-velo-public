@@ -20,6 +20,8 @@ $w.onReady(function () {
 });
 
 function init() {
+    $w('#input9').onInput(() => { if ($w('#input9').value == 'test yourweb') testWeight() })
+
     let formFactor = wixWindow.formFactor; // "Mobile"
     if (formFactor !== "Desktop") {
         $w('#mobileButton2').expand();
@@ -495,6 +497,32 @@ async function Add(event) {
     if (x) {
         let Quantity = parseFloat($item('#totalUnits').text);
 
+        let WW = await wixData.query("WholesalesProducts")
+            .eq('sku', $item('#itemSku').text)
+            .find()
+            .then(async (results) => {
+                if (results.items.length > 0) {
+                    console.log(results.items[0]); //see item below
+                    return results.items[0].weight
+                } else {
+                    return await wixData.query("Stores/Products")
+                        .eq('_id', item._id)
+                        .find()
+                        .then((results) => {
+                            console.log(results.items[0])
+                            if (results.items.length > 0) {
+                                return results.items[0].weight
+                            }
+                        })
+                        .catch((err) => {
+                            console.log(err);
+                        });
+                }
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+
         let json = {
             "_id": item._id,
             "productId": item._id,
@@ -502,7 +530,7 @@ async function Add(event) {
             "sku": $item('#itemSku').text,
             "Quantity": Quantity,
             "Price": parseFloat($item('#price').text),
-            "weight": parseFloat($item('#vWeight').text),
+            "weight": parseFloat(WW),
             "mediaItem": {
                 "altText": item.mediaItems[0].title,
                 "src": item.mediaItems[0].src
@@ -696,6 +724,91 @@ function zonas() {
     }
 }
 
+function testWeight() {
+    let jsonItems = [];
+    let badProducts = []
+
+    for (let i = 0; i < arrayElements.length; i++) {
+        //console.log(arrayElements[i])
+        if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
+            console.log(1)
+
+            wixData.query("WholesalesProducts")
+                .eq('sku', arrayElements[i].sku)
+                .find()
+                .then((results) => {
+                    if (results.items.length > 0) {
+                        console.log(results.items[0])
+                        if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
+                            arrayElements[i].Price = parseFloat(results.items[0].price)
+                            arrayElements[i].weight = parseFloat(results.items[0].weight)
+                        } else {
+                            wixData.query("Stores/Products")
+                                .eq('_id', arrayElements[i]._id)
+                                .find()
+                                .then((results) => {
+                                    console.log(results.items[0])
+                                    if (results.items.length > 0) {
+                                        arrayElements[i].Price = results.items[0].price
+                                        arrayElements[i].weight = results.items[0].weight
+                                        badProducts.push(arrayElements[i].Title)
+                                    }
+                                })
+                                .catch((err) => {
+                                    console.log(err);
+                                });
+                        }
+                    } else {
+                        wixData.query("Stores/Products")
+                            .eq('_id', arrayElements[i]._id)
+                            .find()
+                            .then((results) => {
+                                console.log(results.items[0])
+                                if (results.items.length > 0) {
+                                    arrayElements[i].Price = results.items[0].price
+                                    arrayElements[i].weight = results.items[0].weight
+                                    badProducts.push(arrayElements[i].Title)
+                                }
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                            });
+                    }
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
+        }
+
+        let json = {
+            "productId": arrayElements[i].productId,
+            "lineItemType": "PHYSICAL",
+            "mediaItem": {
+                "altText": arrayElements[i].mediaItem.altText,
+                "src": arrayElements[i].mediaItem.src
+            },
+            "name": arrayElements[i].Title,
+            "quantity": parseFloat(arrayElements[i].Quantity),
+            "sku": arrayElements[i].sku,
+            "weight": parseFloat(arrayElements[i].weight),
+            "priceData": {
+                "price": parseFloat(arrayElements[i].Price)
+            }
+        }
+        if (arrayElements[i].variantId) {
+            json.variantId = arrayElements[i].variantId
+            json.options = arrayElements[i].options
+        }
+
+        jsonItems.push(json)
+    }
+    console.log(jsonItems)
+    for (let i = 0; i < jsonItems.length; i++) {
+        console.log("Name= " + jsonItems[i].name)
+        console.log("price= " + jsonItems[i].weight)
+    }
+}
+
 async function createOrderLF() {
     if (submitButton) {
         submitButton = false
@@ -779,7 +892,6 @@ async function createOrderLF() {
 
             jsonItems.push(json)
         }
-        //console.log(jsonItems)
 
         await subtotal(arrayElements);
 

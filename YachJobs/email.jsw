@@ -1,0 +1,104 @@
+import { triggeredEmails } from 'wix-crm-backend';
+import { contacts } from 'wix-crm-backend';
+
+export async function emailJobs(json) {
+    let member = await getContact(json.email)
+    if (json.check) await createContactJ(json);
+
+    let options = {
+        variables: {
+            subject: json.subject,
+            fullName: json.fullName,
+            email: json.yourEmail,
+            message: json.message,
+            link: json.link
+        }
+    }
+
+    triggeredEmails.emailContact('email', member.items[0]._id, options)
+        .then(() => {
+            console.log("Email Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+export async function getLabels() {
+    let queryResults = await contacts.queryLabels().find({ suppressAuth: true });
+    return queryResults.items
+}
+
+export async function getContact(email) {
+    let option = { suppressAuth: true }
+    let emailInfo = await contacts.queryContacts().eq('info.emails.email', email).find(option);
+    return emailInfo
+}
+
+export async function createContactJ(json) {
+    let member = await getContact(json.yourEmail)
+    let positionID = json.position.split('$') 
+    console.log(positionID)
+    console.log(positionID[0])
+
+    if (!(member.items.length > 0)) {
+
+        let labels = []
+        if (positionID[0] == '2cd35cbb-72c3-4024-ac21-d93746a2eb3b') labels.push('custom.captain')
+        else if (positionID[0] == '7cfefee3-036d-43ea-be01-f60153ea192f') labels.push('custom.chef')
+        else if (positionID[0] == 'efdf6c04-17fb-4713-990c-a049f91ccade') labels.push('custom.cook-stew')
+        else if (positionID[0] == '41c0193f-90ac-4ac1-9218-5f1fa0cdad11') labels.push('custom.deck-engineer')
+        else if (positionID[0] == '465ee66b-ae11-4615-acbf-e9ff924bb7a6') labels.push('custom.deckhand')
+        else if (positionID[0] == 'ca25fff1-d8eb-4ae5-aa10-c4541e5cdf7f') labels.push('custom.engineer')
+        else if (positionID[0] == '0503f067-bcbb-4173-b45d-3783bb01fbcc') labels.push('custom.mate')
+        else if (positionID[0] == 'fb6b6fbf-7737-41f3-adee-9ac51c8b98ce') labels.push('custom.stewardess')
+        
+        const  contactInfo = {
+            emails: [{
+                tag: "HOME",
+                email: json.yourEmail
+            }],
+            labelKeys: labels
+        };
+
+        const  options = {
+            allowDuplicates: false,
+            suppressAuth: true
+        };
+        return contacts.createContact(contactInfo, options).then((contact) => {
+                return contact;
+            })
+            .catch((error) => {
+                console.error(error);
+            });
+    } else {
+        let label = ""
+        if (positionID[0] == '2cd35cbb-72c3-4024-ac21-d93746a2eb3b') label = 'custom.captain'
+        else if (positionID[0] == '7cfefee3-036d-43ea-be01-f60153ea192f') label = 'custom.chef'
+        else if (positionID[0] == 'efdf6c04-17fb-4713-990c-a049f91ccade') label = 'custom.cook-stew'
+        else if (positionID[0] == '41c0193f-90ac-4ac1-9218-5f1fa0cdad11') label = 'custom.deck-engineer'
+        else if (positionID[0] == '465ee66b-ae11-4615-acbf-e9ff924bb7a6') label = 'custom.deckhand'
+        else if (positionID[0] == 'ca25fff1-d8eb-4ae5-aa10-c4541e5cdf7f') label = 'custom.engineer'
+        else if (positionID[0] == '0503f067-bcbb-4173-b45d-3783bb01fbcc') label = 'custom.mate'
+        else if (positionID[0] == 'fb6b6fbf-7737-41f3-adee-9ac51c8b98ce') label = 'custom.stewardess'
+
+        if (!(member.items[0].info.labelKeys.includes(label))) {
+            member.items[0].info.labelKeys.push(label)
+
+            const  contactIdentifiers = {
+                contactId: member.items[0]._id,
+                revision: member.items[0].revision
+            };
+
+            const  updatedContactInfo = {
+                labelKeys: member.items[0].info.labelKeys
+            };
+
+            const  options = {
+                allowDuplicates: false,
+                suppressAuth: true
+            };
+            return contacts.updateContact(contactIdentifiers, updatedContactInfo, options);
+        }
+    }
+}
