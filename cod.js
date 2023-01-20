@@ -25,7 +25,7 @@ function dropdowns() {
 				array.push({ label: results.items[i].title, value: results.items[i].title })
 			}
 			$w('#NameDropdown').options = array;
-		});
+		}).catch((err) => console.log(err))
 }
 
 //FILTER

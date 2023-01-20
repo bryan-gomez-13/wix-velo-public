@@ -132,7 +132,7 @@ function pageOnReady() {
                     password: $w('#password').value,
                     locale: wixWindow.locale
                 }
-
+ 
                 await signup(userData, selectedPlan /*, captcha.token*/ ).then(async (result) => {
                     if (result.type === 'success') {
                         await wixUsers.applySessionToken(result.sessionToken).then(() => {
