@@ -1,0 +1,50 @@
+import wixData from 'wix-data';
+export async function dropsTeam() {
+    let options = {
+        "suppressAuth": true,
+        "suppressHooks": true
+    };
+    return await wixData.query('Team').ascending('teamFilter').find(options).then((results) => {
+        let json = { 'teamFilter': [], 'speciality': [] };
+        let items = results.items
+        items.forEach(team => {
+            if (!(json.teamFilter.includes(team.teamFilter))) json['teamFilter'].push(team.teamFilter);
+            if (!(json.speciality.includes(team.specialtyFilterCategory1)) && team.specialtyFilterCategory1 !== '') json['speciality'].push(team.specialtyFilterCategory1);
+            if (!(json.speciality.includes(team.specialtyFilterCategory2)) && team.specialtyFilterCategory2 !== '') json['speciality'].push(team.specialtyFilterCategory2);
+            if (!(json.speciality.includes(team.specialtyFilterCategory3)) && team.specialtyFilterCategory3 !== '') json['speciality'].push(team.specialtyFilterCategory3);
+            if (!(json.speciality.includes(team.specialtyFilterCategory4)) && team.specialtyFilterCategory4 !== '') json['speciality'].push(team.specialtyFilterCategory4);
+        });
+        let teamA = [];
+        let specialityA = [];
+        json.speciality = json.speciality.sort()
+        json.teamFilter.forEach(item => teamA.push({ label: item, value: item }))
+        json.speciality.forEach(item => specialityA.push({ label: item, value: item }))
+
+        return { 'teamA': teamA, 'specialityA': specialityA }
+    }).catch((err) => console.log(err))
+}
+
+export async function dropsRepeaters() {
+    let options = {
+        "suppressAuth": true,
+        "suppressHooks": true
+    };
+    return await wixData.query('Team').ascending('teamFilter').find(options).then((results) => {
+        let json = { 'teamFilter': [], 'speciality': [] };
+        let items = results.items
+        items.forEach(team => {
+            if (!(json.teamFilter.includes(team.teamFilter))) json['teamFilter'].push(team.teamFilter);
+            if (!(json.speciality.includes(team.specialtyFilterCategory1)) && team.specialtyFilterCategory1 !== '') json['speciality'].push(team.specialtyFilterCategory1);
+            if (!(json.speciality.includes(team.specialtyFilterCategory2)) && team.specialtyFilterCategory2 !== '') json['speciality'].push(team.specialtyFilterCategory2);
+            if (!(json.speciality.includes(team.specialtyFilterCategory3)) && team.specialtyFilterCategory3 !== '') json['speciality'].push(team.specialtyFilterCategory3);
+            if (!(json.speciality.includes(team.specialtyFilterCategory4)) && team.specialtyFilterCategory4 !== '') json['speciality'].push(team.specialtyFilterCategory4);
+        });
+        let teamA = [];
+        let specialityA = [];
+        json.speciality = json.speciality.sort()
+        json.teamFilter.forEach(item => teamA.push({ _id: item, value: item }))
+        json.speciality.forEach(item => specialityA.push({ _id: item, value: item }))
+
+        return { 'teamA': teamA, 'specialityA': specialityA }
+    }).catch((err) => console.log(err))
+}

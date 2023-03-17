@@ -1,0 +1,20 @@
+import wixData from 'wix-data';
+
+var wixOptions = {
+    "suppressAuth": true,
+    "suppressHooks": true
+};
+
+export function getColor() {
+    return wixData.query('Oracle').find(wixOptions).then((results) => {
+        let color = Math.round(Math.random() * (results.items.length))
+        return results.items[color]
+    }).catch((err) => console.log(err))
+}
+
+export function getSentence(id) {
+    return wixData.query('OracleSentences').eq('color', id).find(wixOptions).then((results) => {
+        let sentence = Math.round(Math.random() * (results.items.length))
+        return results.items[sentence]
+    }).catch((err) => console.log(err))
+}

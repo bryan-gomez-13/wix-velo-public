@@ -1,0 +1,12 @@
+import wixPayBackend from 'wix-pay-backend';
+
+export function createMyPayment(pay) {
+    return wixPayBackend.createPayment({
+        items: [{
+            name: "Name",
+            price: pay,
+            quantity: 1
+        }],
+        amount: pay
+    });
+}

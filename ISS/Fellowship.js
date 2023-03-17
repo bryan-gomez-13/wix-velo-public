@@ -1,7 +1,5 @@
 import wixData from 'wix-data';
 
-var minimunYear = 1991;
-
 $w.onReady(function () {
     init();
     dropdowns();
@@ -15,11 +13,12 @@ function init() {
     $w('#searchReports').onInput(() => filter())
     //$w('#fellowSponsor').onInput(() => filter())
     $w('#dropFellowship').onChange(() => filter())
-    $w('#fellowshipYear').onChange(() => filter())
+    $w('#fellowshipYearLast').onChange(() => filter())
+    $w('#fellowshipYearBefore').onChange(() => filter())
     $w('#industry').onChange(() => filter())
     $w('#country').onChange(() => filter())
     $w('#search').onClick(() => filter())
-    console.log($w('#image').src)
+    //console.log($w('#image').src)
     $w('#rep').onItemReady(($item, itemData, index) => {
         if (itemData.image.length > 0) $item('#image').src = itemData.image;
         else $item('#image').src = "wix:image://v1/73f5ce_2a19b36da9894c7989de33f9f1c1d02c~mv2.png/_.png#originWidth=1200&originHeight=1474";
@@ -85,7 +84,6 @@ async function getsponsor() {
 async function getYear() {
     var year = []
     var arrayY = []
-    $w('#fellowshipYear').disable()
     let results = await wixData.query("Fellowships").descending("year").limit(1000).find().then();
     //console.log(results)
     if (results.items.length > 0) {
@@ -96,8 +94,10 @@ async function getYear() {
             await dropDownSponsor(results, year, arrayY);
         }
         //console.log(year)
-        $w('#fellowshipYear').options = year;
-        $w('#fellowshipYear').enable();
+        $w('#fellowshipYearLast').options = year;
+        $w('#fellowshipYearBefore').options = year;
+        $w('#fellowshipYearLast').enable();
+        $w('#fellowshipYearBefore').enable();
         //$w('#dropFellowship').updateValidityIndication();
     }
 }
@@ -173,6 +173,8 @@ function getArray(results, array, topic) {
 // ================================================== FILTER ==================================================
 function filter() {
     let filter = wixData.filter();
+    let sort = wixData.sort().descending('_createdDate');
+
     //Search Report
     if ($w('#searchReports').value !== '') {
         filter = filter.and((wixData.filter().contains("fellow", $w('#searchReports').value)).or(wixData.filter().contains("topic", $w('#searchReports').value)).or(wixData.filter().contains("keywords", $w('#searchReports').value)));
@@ -183,7 +185,10 @@ function filter() {
     //if ($w('#fellowSponsor').value !== '') filter = filter.and(wixData.filter().contains("fellowshipPartnerSponsor", $w('#fellowSponsor').value));
 
     //Fellowship Year
-    if ($w('#fellowshipYear').value !== 'All') filter = filter.and(wixData.filter().eq("year", $w('#fellowshipYear').value));
+    if ($w('#fellowshipYearLast').value !== 'All' && $w('#fellowshipYearBefore').value !== 'All' && $w('#fellowshipYearLast').value !== $w('#fellowshipYearBefore').value) filter = filter.and(wixData.filter().between("year", $w('#fellowshipYearLast').value, $w('#fellowshipYearBefore').value));
+    else if ($w('#fellowshipYearLast').value !== 'All' && $w('#fellowshipYearBefore').value == 'All') filter = filter.and(wixData.filter().ge("year", $w('#fellowshipYearLast').value));
+    else if ($w('#fellowshipYearLast').value == 'All' && $w('#fellowshipYearBefore').value !== 'All') filter = filter.and(wixData.filter().le("year", $w('#fellowshipYearBefore').value));
+
 
     //Industry
     if ($w('#industry').value !== 'All') filter = filter.and(wixData.filter().contains("category", $w('#industry').value));
@@ -191,8 +196,9 @@ function filter() {
     //Country
     if ($w('#country').value !== 'All') filter = filter.and(wixData.filter().contains("country", $w('#country').value));
 
-    if ($w('#searchReports').value == '' && $w('#dropFellowship').value == 'All' && $w('#industry').value == 'All' && $w('#country').value == 'All' && $w('#fellowshipYear').value == 'All') filter = filter.and(wixData.filter().eq("featured", true));
+    if ($w('#searchReports').value == '' && $w('#dropFellowship').value == 'All' && $w('#industry').value == 'All' && $w('#country').value == 'All' && $w('#fellowshipYearLast').value == 'All' && $w('#fellowshipYearBefore').value == 'All') filter = filter.and(wixData.filter().eq("featured", true));
 
     filter = filter.and(wixData.filter().eq("status", true));
     $w('#dynamicDataset').setFilter(filter);
+    $w("#dynamicDataset").setSort(sort);
 }

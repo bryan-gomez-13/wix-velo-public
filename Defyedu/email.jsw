@@ -1,0 +1,38 @@
+import { triggeredEmails } from 'wix-crm-backend';
+import wixData from 'wix-data';
+
+export function email(sender, message, recibe, user) {
+    let emailId = "chat";
+    const idUser = recibe.privateId;
+    const options = {
+        variables: {
+            infoUser: sender,
+            message: message
+        }
+    }
+    triggeredEmails.emailMember(emailId, idUser, options)
+        .then(async () => {
+            let json = {
+                professor: recibe.privateId,
+                studentOrParents: user.privateId
+            }
+            await triggeredEmails.emailMember(emailId, user.privateId, options)
+            await wixData.insert('History', json)
+                .catch((err) => console.log('History',err));
+            console.log('Email Done')
+        })
+        .catch((error) => console.error(error));
+}
+
+export function newUser(json) {
+    let emailId = "welcome";
+    const idUser = json.privateId;
+    const options = {
+        variables: { Name: json.name }
+    }
+    triggeredEmails.emailMember(emailId, idUser, options)
+        .then(async () => {
+            console.log('Email New User Done')
+        })
+        .catch((error) => console.error(error));
+}

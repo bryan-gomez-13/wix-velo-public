@@ -1,0 +1,12 @@
+import wixPayBackend from 'wix-pay-backend';
+
+export function createMyPayment() {
+    return wixPayBackend.createPayment({
+        items: [{
+            name: "Specialist Membership",
+            price: 1,
+            quantity: 1
+        }],
+        amount: 1
+    });
+}

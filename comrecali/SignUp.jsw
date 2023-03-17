@@ -1,0 +1,14 @@
+import { authentication } from 'wix-members-backend';
+// Sign Up
+export async function signUp(json, pass) {
+    //Options for the register
+    let
+        options = {
+            "contactInfo": { "firstName": json.firstName },
+            "privacyStatus": "PUBLIC"
+        }
+
+    //Register
+    return await authentication.register(json.email, pass, options)
+        .catch(err => { return { type: 'registration error', message: err.message } })
+}

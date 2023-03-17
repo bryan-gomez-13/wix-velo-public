@@ -1,7 +1,8 @@
 import wixData from 'wix-data';
 import { contacts } from 'wix-crm-backend';
-import wixUsersBackend from 'wix-users-backend';
+import { members } from 'wix-members-backend';
 import { authorization } from 'wix-members-backend';
+import { authentication } from 'wix-members-backend';
 
 // Sign Up
 export async function signUp(json, pass, imageId) {
@@ -10,45 +11,40 @@ export async function signUp(json, pass, imageId) {
     if (json.type == "Artist") {
         options = {
             "contactInfo": {
-                "firstName": json.artistBandName,
-                "picture": imageId,
-                "custom.type": json.type,
-                "custom.artist-genre": json.artistGenre,
-                "custom.type-of-artist": json.typeOfArtist
-            }
+                "firstName": json.firstName,
+                "lastName": json.lastName,
+                //"picture": imageId,
+                "custom.type": json.type
+            },
+            "privacyStatus": "PUBLIC"
         }
     } else {
         options = {
             "contactInfo": {
-                "firstName": json.artistBandName,
+                "firstName": json.userName,
                 "custom.type": json.type
-            }
+            },
+            "privacyStatus": "PUBLIC"
         }
     }
     //Register
-    return await wixUsersBackend.register(json.email, pass, options).then(async (registrationResult) => {
+    return await authentication.register(json.email, pass, options).then(async (registrationResult) => {
+        console.log(registrationResult)
         //Assign Role
-        if (json.type == "Artist") await authorization.assignRole('ea79ef90-204d-42be-8d1f-7e74f2b9b261', registrationResult.user.id, { suppressAuth: false })
-        else await authorization.assignRole('b7cb28f7-4f45-4158-86f8-3c680a41ec5f', registrationResult.user.id, { suppressAuth: false })
+        if (json.type == "Artist") await authorization.assignRole('ea79ef90-204d-42be-8d1f-7e74f2b9b261', registrationResult.member._id, { suppressAuth: false })
+        else await authorization.assignRole('b7cb28f7-4f45-4158-86f8-3c680a41ec5f', registrationResult.member._id, { suppressAuth: false })
         //Return token for login
-        return { type: 'success', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken, id: registrationResult.user.id }
-    }).catch(err => { return { type: 'registration error', message: `Registering user failed, here is the error: ${err}.` } })
+        return { type: 'success', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken, id: registrationResult.member._id }
+    }).catch(err => { return { type: 'registration error', message: err.message } })
 }
 
 export async function collection() {
-    let json = {
-        nombre: "bryan",
-        privateId: "x"
-    }
-    await console.log(json)
-    json.privateId ="andfajdsnoajdnad"
-    console.log(json)
-    wixData.query("Users")
+    wixData.query("Artist")
         .find()
         .then((results) => {
             if (results.items.length > 0) {
                 console.log(results.items); //see item below
-            } 
+            }
         })
         .catch((err) => {
             console.log(err);
@@ -58,7 +54,7 @@ export async function collection() {
 
 // get info of the contact
 export async function myQueryContactsFunction() {
-    let results = await contacts.queryContacts().eq('info.emails.email', 'infor@yorweb.co.nz').find();
+    let results = await contacts.queryContacts().eq('primaryInfo.email', 'bryan.gh041399@gmail.com').find();
     return results
 
 }
@@ -68,4 +64,28 @@ export function myQueryExtendedFieldsFunction() {
         .find();
     return queryResults;
 
+}
+
+// Update member
+export function updateMember(id, member) {
+    //console.log(member)
+    let profile = {
+        "contactInfo": {
+            "picture": member.profilePhoto,
+            "custom.type-of-artist": member.typeOfArtist,
+            "custom.artist-genre": member.artistGenre
+        },
+        "profile": {
+            "profilePhoto": {
+                url: member.profilePhoto
+            }
+        }
+    }
+    return members.updateMember(id, profile)
+        .then((member) => {
+            return member;
+        })
+        .catch((error) => {
+            console.error(error);
+        });
 }

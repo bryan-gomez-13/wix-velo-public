@@ -1,0 +1,47 @@
+import { contacts } from 'wix-crm-backend';
+import wixData from 'wix-data';
+
+export async function createContact(info) {
+    let labels = []
+
+    await wixData.query("Crew").eq('title',info.position).find()
+        .then((results) => {
+            if (results.items.length > 0) {
+                console.log(results.items[0]); //see item below
+                labels.push(results.items[0].idContact)
+            }
+        }).catch((err) => console.log(err));
+        
+    const contactInfo = {
+        name: {
+            first: info.name
+        },
+        emails: [{
+            tag: "MAIN",
+            email: info.email
+        }],
+        labelKeys: labels
+    };
+
+    const options = {
+        allowDuplicates: false,
+        suppressAuth: true
+    };
+
+    return contacts.createContact(contactInfo, options)
+        .then((contact) => { return contact })
+        .catch((error) => console.error(error));
+}
+
+export async function sendEmailToContact() {
+    /*
+    contacts.queryContacts().eq("info.emails.email", "bryan.gh041399@gmail.com").find()
+    .then((results) => {
+        console.log(results)
+    }).catch((err) => console.log(err))
+    */
+    let option = { suppressAuth: true }
+    const subscriptionStatusQuery = await contacts.queryContacts().eq("info.extendedFields.emailSubscriptions.subscriptionStatus", "UNSUBSCRIBED").find(option)
+        .catch((err) => console.log(err))
+    return subscriptionStatusQuery
+}

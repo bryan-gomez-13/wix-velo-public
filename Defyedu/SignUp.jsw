@@ -1,0 +1,44 @@
+import wixData from 'wix-data';
+import { newUser } from 'backend/Email.jsw'
+import { authorization } from 'wix-members-backend';
+import { authentication } from 'wix-members-backend';
+
+export async function signUp(json, pass, imageId) {
+    let options = {
+        "contactInfo": {
+            "firstName": json.firstName,
+            "lastName": json.lastName,
+            "picture": imageId
+        },
+        "privacyStatus": "PUBLIC"
+    }
+
+    //Register
+    return await authentication.register(json.email, pass, options).then(async (registrationResult) => {
+        console.log(registrationResult)
+        //Assign Role
+        if (json.role == "Joker") await authorization.assignRole('c5de49b9-fcce-4853-b6d1-27f718ac357d', registrationResult.member._id, { suppressAuth: false })
+        //Register Email
+        await newUser(json = { privateId: registrationResult.member._id, name: json.firstName + " " + json.lastName })
+        return { type: 'success', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken, id: registrationResult.member._id }
+    }).catch(err => { return { type: 'registration error', message: err.message } })
+
+}
+
+export async function putRole(memberId) {
+    await wixData.query("users").eq('privateId', memberId).find()
+        .then(async (results) => {
+            let item = results.items[0];
+            let roleId
+            if (item.role == "High School Student") roleId = "f9f1c03b-e6fc-4195-98cf-8b883e0b9bb3"
+            else if (item.role == "Parents") roleId = "487e047c-cd0d-4e0b-84ed-f1acf99c1649"
+            else if (item.role == "College Student") roleId = "f9718ebd-e033-4b79-b4c6-55cbb118c50e"
+            else if (item.role == "College Graduate") roleId = "597204df-e921-4397-86b3-287252c9317f"
+            else if (item.role == "Counselor") roleId = "f30f1f0d-6aa5-4237-be39-1a8a6b17879f"
+            
+            item.premium = true
+            await wixData.update("users", item, { 'suppressAuth': true })
+            await authorization.assignRole(roleId, memberId, { suppressAuth: false })
+        })
+        .catch((err) => console.log(err));
+}
