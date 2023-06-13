@@ -142,7 +142,7 @@ function filterOp2() {
 
     if (catFilter.length > 0) filter = filter.and(wixData.filter().hasSome("role", catFilter));
     else filter = filter.and(wixData.filter().hasSome("role", arrayRole));
-    if (cateState.length > 0) filter = filter.and(wixData.filter().hasSome("state", cateState));
+    if (cateState.length > 0) filter = filter.and(wixData.filter().hasSome("stateV", cateState));
     else filter = filter.and(wixData.filter().hasSome("role", arrayRole));
     if (cateCity.length > 0) filter = filter.and(wixData.filter().hasSome("city", cateCity));
     else filter = filter.and(wixData.filter().hasSome("role", arrayRole));

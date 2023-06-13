@@ -1,0 +1,43 @@
+import { triggeredEmails } from 'wix-crm-backend';
+
+export function ApplyEmail(jsonEmail) {
+    // info@yourweb.co.nz           87cef407-2a70-47e8-ad51-7073a63fabe6
+    // yourweb.team22@gmail.com     6c86162d-e7a9-4d1d-b5b1-0a0190d42d43
+    console.log(jsonEmail)
+    let emailId = "ApplyEmail";
+
+    //Yourweb
+    const idUser = "6c86162d-e7a9-4d1d-b5b1-0a0190d42d43";
+    const options = {
+        variables: jsonEmail
+    }
+
+    triggeredEmails.emailMember(emailId, idUser, options)
+        .then(() => {
+            console.log("Email Apply")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+export function newCourseEmail(jsonEmail) {
+    // info@yourweb.co.nz           87cef407-2a70-47e8-ad51-7073a63fabe6
+    // yourweb.team22@gmail.com     6c86162d-e7a9-4d1d-b5b1-0a0190d42d43
+    console.log(jsonEmail)
+    let emailId = "newCourseEmail";
+
+    //Yourweb
+    const idUser = "6c86162d-e7a9-4d1d-b5b1-0a0190d42d43";
+    const options = {
+        variables: jsonEmail
+    }
+
+    triggeredEmails.emailMember(emailId, idUser, options)
+        .then(() => {
+            console.log("Email New Course")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

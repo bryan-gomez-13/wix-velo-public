@@ -1,0 +1,42 @@
+import wixPayBackend from 'wix-pay-backend';
+import { contacts, triggeredEmails } from 'wix-crm-backend';
+
+export function createMyPayment(amount) {
+    return wixPayBackend.createPayment({
+        items: [{
+            name: "Donation",
+            price: amount
+        }],
+        amount: amount
+    });
+}
+
+export async function getContactID(email) {
+    let options = { suppressAuth: true }
+    return await contacts.queryContacts().eq('info.emails.email', email).find(options).then((contacts) => {
+        return contacts.items[0]._id
+    })
+}
+
+export async function sendEmail(info) {
+    let emailId = "Email";
+    const idUser = await getContactID(info.email);
+    let dateE = new Date()
+    const options = {
+        variables: {
+            name: info.name,
+            email: info.email,
+            receiptNumber: info.internalReceipt,
+            amount: info.amount,
+            date: dateE.toDateString()
+        }
+    }
+
+    triggeredEmails.emailContact(emailId, idUser, options)
+        .then(() => {
+            console.log("Email Done")
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}

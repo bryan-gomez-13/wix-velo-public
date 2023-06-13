@@ -20,7 +20,7 @@ $w.onReady(function () {
 });
 
 function init() {
-    $w('#input9').onInput(() => { if ($w('#input9').value == 'test yourweb') testWeight() })
+    //$w('#input9').onInput(() => { if ($w('#input9').value == 'test yourweb') testWeight() })
 
     let formFactor = wixWindow.formFactor; // "Mobile"
     if (formFactor !== "Desktop") {
@@ -46,6 +46,13 @@ function init() {
     $w('#searchProduct').onClick(() => filterLatino());
     $w('#filter').onChange(() => filterLatino());
     $w('#range').onChange(() => filterLatino());
+    //Check weight
+    $w('#search').onInput(() => {
+        if ($w('#search').value == 'Bryan') $w('#check').expand();
+        else $w('#check').collapse();
+    })
+    $w('#checkButton').onClick(() => checkSystem())
+
     $w('#search').onKeyPress((event) => { if (event.key == 'Enter') filterLatino() })
 
     $w('#submit').onClick(() => createOrderLF());
@@ -56,8 +63,8 @@ function init() {
 
     $w("#repeater1").onItemReady(async ($item, itemData, index) => {
         //IMPORTANT CONSOLE FOR TO SEE ALL THE PRODUCTS IN THE REPEATER
-        console.log(itemData)
-        console.log(itemData.sku)
+        //console.log(itemData)
+        //console.log(itemData.sku)
 
         //Image of the repeater - Altext and tooltip
         //$item('#image1').alt = itemData.name;
@@ -614,7 +621,7 @@ async function Add(event) {
 
 async function sessionOrder() {
     arrayElements = await JsonToArray(session.getItem("Order").split('-Latino-'))
-    console.log('ok', arrayElements)
+    //console.log('ok', arrayElements)
 
     updateRepeater(arrayElements);
     subtotal(arrayElements);
@@ -689,6 +696,7 @@ function subtotal(arrayElements) {
     $w('#subtotal').text = "Total: $" + subtotalText.toFixed(2);
     $w('#text144').text = "Total: $" + subtotalText.toFixed(2);
     $w('#input15').value = "" + subtotalText.toFixed(2);
+    return subtotalText.toFixed(2)
 }
 
 function FormOrder(arrayElements) {
@@ -821,8 +829,6 @@ async function createOrderLF() {
         for (let i = 0; i < arrayElements.length; i++) {
             //console.log(arrayElements[i])
             if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
-                console.log(1)
-
                 wixData.query("WholesalesProducts")
                     .eq('sku', arrayElements[i].sku)
                     .find()
@@ -1077,4 +1083,82 @@ export async function decrementHandler(decrementInfo) {
             // Inventory decrement failed
             console.error(error);
         })
+}
+
+// ===================================================== CHECK SYSTEM =====================================================
+async function checkSystem() {
+    let jsonItems = [];
+    let badProducts = []
+    $w('#checkMessage').text = ""
+    let weight = 0
+
+    for (let i = 0; i < arrayElements.length; i++) {
+        //console.log(arrayElements[i])
+        $w('#checkMessage').text += "\n\n" + arrayElements[i]['Title'] + "\n" + arrayElements[i].sku + "   -   " + arrayElements[i].weight + "\n"
+
+        if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
+            wixData.query("WholesalesProducts").eq('sku', arrayElements[i].sku).find().then((results) => {
+                    if (results.items.length > 0) {
+                        console.log('Collection info')
+                        if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
+                            arrayElements[i].Price = parseFloat(results.items[0].price)
+                            arrayElements[i].weight = parseFloat(results.items[0].weight)
+                        } else {
+                            wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
+                                    console.log("Store price or weight")
+                                    if (results.items.length > 0) {
+                                        arrayElements[i].Price = results.items[0].price
+                                        arrayElements[i].weight = results.items[0].weight
+                                        badProducts.push(arrayElements[i].Title)
+                                    }
+                                })
+                                .catch((err) => {
+                                    console.log(err);
+                                });
+                        }
+                    } else {
+                        wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
+                                console.log('Store because its no in the collection')
+                                if (results.items.length > 0) {
+                                    arrayElements[i].Price = results.items[0].price
+                                    arrayElements[i].weight = results.items[0].weight
+                                    badProducts.push(arrayElements[i].Title)
+                                }
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                            });
+                    }
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
+        }else console.log('Price and Weight ok')
+
+        let json = {
+            "productId": arrayElements[i].productId,
+            "lineItemType": "PHYSICAL",
+            "mediaItem": {
+                "altText": arrayElements[i].mediaItem.altText,
+                "src": arrayElements[i].mediaItem.src
+            },
+            "name": arrayElements[i].Title,
+            "quantity": parseFloat(arrayElements[i].Quantity),
+            "sku": arrayElements[i].sku,
+            "weight": parseFloat(arrayElements[i].weight),
+            "priceData": {
+                "price": parseFloat(arrayElements[i].Price)
+            }
+        }
+        weight += arrayElements[i].weight
+
+        if (arrayElements[i].variantId) {
+            json.variantId = arrayElements[i].variantId
+            json.options = arrayElements[i].options
+        }
+
+        jsonItems.push(json)
+    }
+    $w('#checkMessage').text += "\n\nTOTAL Weight:" + weight
+    console.log(weight, badProducts, jsonItems)
 }

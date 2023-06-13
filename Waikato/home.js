@@ -1,4 +1,4 @@
-import { createMyPayment } from 'backend/pay';
+import { createMyPayment, sendEmail } from 'backend/functions';
 import wixData from 'wix-data';
 import wixPay from 'wix-pay';
 import wixLocation from 'wix-location';
@@ -18,12 +18,31 @@ $w.onReady(function () {
             $w('#ThreeBox').onClick(() => more(three));
         })
 
-    $w('#pay').onClick(() => payAmount())
+    $w('#pay').onClick(() => checkAddress())
 });
 
 function more(money) {
     if (parseInt($w('#amount').value) == 0) $w('#amount').value = money
     else $w('#amount').value = parseInt($w('#amount').value) + money
+}
+
+function checkAddress() {
+    $w('#message').hide();
+    $w('#pay').disable()
+    try {
+        check();
+        //console.log($w('#address').value)
+        payAmount();
+    } catch (err) {
+        $w('#message').text = err.message;
+        $w('#message').show();
+        $w('#pay').enable();
+    }
+}
+
+function check() {
+    if (!$w('#address').valid) throw new Error('Missing address');
+    if (!($w('#address').value.city)) throw new Error('Missing select address');
 }
 
 function payAmount() {
@@ -33,23 +52,36 @@ function payAmount() {
                 .then(async (result) => {
                     //console.log(result)
                     if (result.status === "Successful" || result.status === "Offline") {
-                        let toInsert = {
-                            status: result.status,
-                            transactionId: result.transactionId,
-                            name: result.userInfo.firstName + " " + result.userInfo.lastName,
-                            country: result.userInfo.country,
-                            phone: result.userInfo.phone,
-                            email: result.userInfo.email,
-                            amount: result.payment.amount,
-                            currency: result.payment.currency
-                        }
-                        if($w('#note').value.length > 0) toInsert.note = $w('#note').value
-
-                        await wixData.insert("Donation", toInsert)
-                            .then(() => {
-                                $w('#amount').value = 0 + ""
-                                wixLocation.to('/thank-you')
-                            }).catch((err) => console.log(err));
+                        await wixData.query('Donation').descending('_createdDate').find().then(async (donation) => {
+                            let lastValue = donation.items[0].internalReceipt;
+                            let prefix = lastValue[0];
+                            let numberStr = lastValue.slice(1);
+                            let number = parseInt(numberStr);
+                            let nextNumber = number + 1;
+                            let nextNumberStr = nextNumber.toString().padStart(numberStr.length, "0");
+                            let nextValue = prefix + nextNumberStr;
+                            let toInsert = {
+                                status: result.status,
+                                transactionId: result.transactionId,
+                                name: result.userInfo.firstName + " " + result.userInfo.lastName,
+                                country: result.userInfo.country,
+                                phone: result.userInfo.phone,
+                                email: result.userInfo.email,
+                                amount: result.payment.amount,
+                                currency: result.payment.currency,
+                                recibeEmails: $w('#recibeEmails').checked,
+                                internalReceipt: nextValue,
+                                address: $w('#address').value.formatted
+                            }
+                            if ($w('#note').value.length > 0) toInsert.note = $w('#note').value
+                            await wixData.insert("Donation", toInsert)
+                                .then(async () => {
+                                    $w('#amount').value = 0 + ""
+                                    await sendEmail(toInsert)
+                                    wixLocation.to('/thank-you')
+                                }).catch((err) => console.log(err));
+                            
+                        }).catch((err) => console.log(err))
                     } else {
                         $w('#message').text = result.status
                         $w('#message').show();

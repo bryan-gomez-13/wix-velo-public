@@ -1,0 +1,198 @@
+import { availabilityCalendar, extendedBookings } from 'wix-bookings.v2';
+import { bookings, sessions } from 'wix-bookings.v2';
+import { contacts } from 'wix-crm-backend';
+import * as wixAuth from 'wix-auth';
+
+// ======================= Available sessions grouped by dates =======================
+export async function bookInfo2(services) {
+    try {
+        let startRange = new Date();
+        let endRange = new Date(startRange.getFullYear(), (startRange.getMonth() + 1), 1);
+
+        let query = {
+            "filter": {
+                "serviceId": services,
+                startDate: startRange,
+                endDate: endRange
+            }
+        }
+
+        let result = await availabilityCalendar.queryAvailability(query, { suppressAuth: true });
+
+        return result.availabilityEntries;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+// ======================= Create =======================
+export async function bookSlot_Back(servBooking, member, services) {
+    console.log(servBooking)
+    let formFields = []
+    for (let i = 0; i < services.length; i++) {
+        if (servBooking.slot.serviceId == services[i]._id) {
+            for (let j = 0; j < services[i].form.fields.length; j++) {
+                let json = {}
+                if (services[i].form.fields[j].label == "Email") json._id = services[i].form.fields[j]._id, json.value = member.loginEmail
+                else if (services[i].form.fields[j].label == "Name") json._id = services[i].form.fields[j]._id, json.value = member.contactDetails.firstName + " " + member.contactDetails.lastName
+                else if (services[i].form.fields[j].label == "Phone Number" && member.contactDetails.phones.length > 0) json._id = services[i].form.fields[j]._id, json.value = member.contactDetails.phones[0]
+                if (Object.keys(json).length > 0) {
+                    formFields.push(json)
+                }
+            }
+
+            break;
+        }
+    }
+    formFields.pop()
+
+    let serviceIDX = 0
+    for (let i = 0; i < services.length; i++) {
+        if (servBooking.slot.serviceId == services[i]._id) {
+            serviceIDX = i
+            break
+        }
+    }
+
+    let contactDetails = await getContact(member.loginEmail)
+
+    // ========================================= OPTION 1 CREATE BOOKING =========================================
+    const { info } = contactDetails;
+    console.log('formFields: ', formFields);
+    let booking = {
+        // "booking": {
+        "bookedEntity": {
+            "slot": servBooking.slot,
+            "title": services[serviceIDX].serviceName,
+            "tags": [
+                services[serviceIDX].serviceType
+            ]
+        },
+        "contactDetails": {
+            "contactId": contactDetails._id,
+            firstName: info.name.first,
+            lastName: info.name.last,
+            email: info.emails[0].email,
+        },
+        "additionalFields": formFields,
+        //"status": "CONFIRMED",
+        "totalParticipants": 1,
+        "selectedPaymentOption": "MEMBERSHIP",
+        // },
+    };
+
+    const options = {
+        "sendSmsReminder": false,
+        "participantNotification": {
+            "notifyParticipants": true
+        },
+        "flowControlSettings": {
+            "skipAvailabilityValidation": false,
+            "skipBusinessConfirmation": false,
+            "skipSelectedPaymentOptionValidation": false
+        }
+    }
+
+    console.log(booking)
+
+    try {
+        const result = await bookings.createBooking(booking, options);
+        //const result = await bookings.createBooking(bookS, { suppressAuth: true });
+        console.log(result)
+    } catch (error) {
+        return error
+    }
+}
+
+// ======================= Get Contact 
+// yourweb.team22@gmail.com - 55c9da2e-50e4-4a27-acd1-974792521f47
+export async function getContact(email, index) {
+    return await contacts.queryContacts().eq('info.emails.email', email).find({ suppressAuth: true }).then((contact) => {
+        if (contact.items.length > 0) {
+            let newContact = contact.items[0]
+            if (index == true) {
+                let json = {}
+                for (let i = 0; i < newContact.info.emails.length; i++) {
+                    if (newContact.info.emails[i].primary == true) {
+                        json.email = newContact.info.emails[i].email
+                        break
+                    }
+                }
+                json.first_name = newContact.info.name.first
+                json.last_name = newContact.info.name.last
+                json.contact_id = newContact._id
+                return json
+            } else return newContact
+
+        } else console.log('Pailas')
+    }).catch((err) => console.log(err));
+}
+
+// ======================= Cancel Booking
+export async function cancelBooking_V2(book) {
+    try {
+        let bookingId = book._id
+        let options = {
+            "participantNotification": {
+                "notifyParticipants": false
+            },
+            "flowControlSettings": {
+                "ignoreCancellationPolicy": false,
+                "withRefund": true
+            },
+            "revision": book.revision,
+            "suppressAuth": true
+        }
+        const result = await bookings.cancelBooking(bookingId, options);
+
+        return result;
+    } catch (error) {
+        console.error(error);
+        return error
+    }
+}
+
+// ======================= Get session
+// "193ZPR9ppP9emJUCLevcLf6orynNEIDt5nc0520xjGQILnPPaF5s62yK3BWz7ExgIRM1UIV4f8RW9xPSrFaScfIqw6NjYBvaj4JyvAZhmj19dgQlFTJgA9xN1bQOZzXbSwg0yD5uO8rlSpMEzvk2WlqvRDqW6qgNujaHbVIHN2JopoS97dicUdMLMIbky7EHi9uASTorx4Cog2sHckoprKeCowiQkcCFtafsgdsesGGnQ6UaPjjq3IQyyqB69JqLCjTIOrMODxkc3zNqgnTSlEWSB4evlwfnvt4R1CM7z6MuVrWQFrC0y1UH5zc34b34QuRzrCLXCmqKdR"
+export async function getSession(sessionId) {
+    // Using ALL_PI to get the calendarConference.....
+    const options = {
+        "fieldsets": ["ALL_PI"],
+    };
+    const session = await wixAuth.elevate(sessions.getSession)(sessionId, options)
+    return session
+}
+
+// ======================= Get Bookings
+export async function queryExtendedBookings(contactID) {
+    // yourweb.team22@gmail.com - 55c9da2e-50e4-4a27-acd1-974792521f47
+    let dateNow = new Date();
+
+    let query = {
+        "filter": {
+            "contactDetails.contactId": { "$eq": contactID },
+            "startDate": { "$gte": dateNow },
+            "status": { "$eq": "CONFIRMED" },
+        },
+        "paging": { "offset": 0 },
+        "sort": [{ "fieldName": "startDate", "order": "ASC" }],
+    }
+
+    let options = {
+        "withBookingAllowedActions": false,
+        "withBookingAttendanceInfo": false,
+    }
+
+    console.log("===== Get My Bookings by Contact V2 =====")
+    console.log("query", query)
+    console.log("options", options)
+
+    try {
+        const result = await wixAuth.elevate(extendedBookings.queryExtendedBookings)(query, options);
+
+        return result;
+    } catch (error) {
+        console.error(error);
+        // Handle the error
+    }
+}

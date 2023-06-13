@@ -14,6 +14,7 @@ function init() {
     $w('#role').onChange(() => roleFields($w('#role').value))
 
     //Fields
+    /*
     $w('#check16Y').onChange(() => {
         if ($w('#check16Y').value == 'Yes' && $w('#tc').checked) $w('#save').enable()
         else $w('#save').disable()
@@ -23,11 +24,12 @@ function init() {
         if ($w('#check18Y').value == 'Yes' && $w('#tc').checked) $w('#save').enable()
         else $w('#save').disable()
     })
-
+    
     $w('#tc').onChange(() => {
         if ($w('#tc').checked) $w('#save').enable()
         else $w('#save').disable()
     })
+    */
 
     $w('#email').onInput(() => getEmail())
 
@@ -49,15 +51,6 @@ async function drop() {
             $w('#role').options = array;
             $w('#role').enable();
         }).catch((err) => console.log(err))
-
-    await wixData.query("States").ascending('state').find()
-        .then((results) => {
-            let array = [];
-            for (let i = 0; i < results.items.length; i++) {
-                array.push({ label: results.items[i].state, value: results.items[i]._id })
-            }
-            $w('#state').options = array;
-        }).catch((err) => console.log(err))
 }
 
 // ========================================= Control the fields of roles =========================================
@@ -65,52 +58,25 @@ function roleFields(field) {
     console.log($w('#role').value)
     $w('#box2').show();
     if (field == "High School Student") {
+        $w('#check18YG').collapse();
         $w('#check16YG').expand();
+        $w('#tc').expand();
 
-        $w('#check18YG').collapse();
-        $w('#city').collapse();
-        $w('#state').collapse();
-        $w('#messageCCC').collapse();
-        $w('#university').collapse();
-        $w('#major').collapse();
-        $w('#highestCollegeDegree').collapse();
     } else if (field == "Parents") {
-        $w('#check18YG').expand();
-        $w('#city').expand();
-        $w('#state').expand();
-
         $w('#check16YG').collapse();
-        $w('#messageCCC').collapse();
-        $w('#university').collapse();
-        $w('#major').collapse();
-        $w('#highestCollegeDegree').collapse();
+        $w('#check18YG').expand();
+        $w('#tc').collapse();
+        
     } else if (field == "College Student" || field == "College Graduate" || field == "Counselor") {
-        $w('#city').expand();
-        $w('#state').expand();
-        $w('#university').expand();
-        $w('#major').expand();
-        if (field !== "College Student") $w('#highestCollegeDegree').expand();
-        else $w('#highestCollegeDegree').collapse();
-
+        $w('#tc').collapse();
         $w('#check18YG').collapse();
         $w('#check16YG').collapse();
-
-        //$w('#save').enable()
-
-        if (field == "College Student") $w('#messageCCC').text = "Currently enrolled at", $w('#messageCCC').expand();
-        else if (field == "College Graduate" || field == "Counselor") $w('#messageCCC').text = "College Background", $w('#messageCCC').expand();
 
     } else if (field == "Sponsor") {
+        $w('#tc').expand();
+
         $w('#check16YG').collapse();
         $w('#check18YG').collapse();
-        $w('#city').collapse();
-        $w('#state').collapse();
-        $w('#messageCCC').collapse();
-        $w('#university').collapse();
-        $w('#major').collapse();
-        $w('#highestCollegeDegree').collapse();
-
-        //$w('#save').enable()
     }
 }
 
@@ -124,7 +90,7 @@ async function getEmail() {
                 $w('#message').expand()
                 $w('#message').scrollTo()
                 $w('#save').disable()
-            }
+            }else $w('#save').enable()
 
         }).catch((err) => console.log(err));
 }
@@ -156,21 +122,13 @@ function checkValidation() {
 
     // Roles
     if ($w('#role').value == "High School Student") {
-        if (!$w('#check16Y').valid) throw new Error('You must be 16 or older to be a student.\nAlternatively, Student may request Parents to Subscribe');
+        if (!$w('#check16Y').valid || $w('#check16Y').value == 'No') throw new Error('You must be 16 or older to be a student.\nAlternatively, Student may request Parents to Subscribe');
+        if (!$w('#tc').valid) throw new Error('Check Terms and conditions');
     } else if ($w('#role').value == "Parents") {
-        if (!$w('#check18Y').valid) throw new Error('You must be 18 or older to be a parent');
-        if (!$w('#city').valid) throw new Error('Missing City');
-        if (!$w('#state').valid) throw new Error('Missing State');
-    } else if ($w('#role').value == "College Student" || $w('#role').value == "College Graduate" || $w('#role').value == "Counselor") {
-        if (!$w('#city').valid) throw new Error('Missing City');
-        if (!$w('#state').valid) throw new Error('Missing State');
-        if (!$w('#university').valid) throw new Error('Missing University');
-        if (!$w('#major').valid) throw new Error('Missing Major');
-        if (!$w('#highestCollegeDegree').valid && $w('#role').value !== "College Student") throw new Error('Missing Highest College Degree');
+        if (!$w('#check18Y').valid || $w('#check18Y').value == 'No') throw new Error('You must be 18 or older to be a parent');
+    } else if ($w('#role').value == "Sponsor"){
+        if (!$w('#tc').valid) throw new Error('Check Terms and conditions');
     }
-
-    if (!$w('#tc').valid) throw new Error('Check Terms and conditions');
-
 }
 
 async function save() {
@@ -182,23 +140,18 @@ async function save() {
         lastName: $w('#lastName').value,
         picture: Image,
         email: $w('#email').value,
-        tc: $w('#tc').checked,
         premium: false,
         completeProfile: false
     }
     // Roles
     if ($w('#role').value == "High School Student") {
         json['16YearsOld'] = $w('#check16Y').value
+        json.tc = $w('#tc').checked
     } else if ($w('#role').value == "Parents") {
         json['18YearsOld'] = $w('#check18Y').value
-        json.city = $w('#city').value
-        json.state = $w('#state').value
-    } else if ($w('#role').value == "College Student" || $w('#role').value == "College Graduate" || $w('#role').value == "Counselor") {
-        json.city = $w('#city').value
-        json.state = $w('#state').value
-        json.university = $w('#university').value
-        json.major = $w('#major').value
-        if ($w('#role').value !== "College Student") json.highestCollegeDegree = $w('#highestCollegeDegree').value
+    }else if ($w('#role').value == "Sponsor") {
+        json.premium = true
+        json.tc= $w('#tc').checked
     }
 
     await signUp(json, $w('#pass').value, imageId).then(async (result) => {
@@ -209,7 +162,9 @@ async function save() {
             $w('#loading').hide();
             $w('#message').text = result.message;
             $w('#message').expand();
-            setTimeout(() => wixLocation.to('/get-premium'), 1000);
+            if ($w('#role').value == "Sponsor") setTimeout(() => wixLocation.to('/'), 1000);
+            else setTimeout(() => wixLocation.to('/account/my-account'), 1000);
+
         } else {
             console.error(`${result.type} error occurred. Error message: ${result.message}`);
             $w('#loading').hide();
@@ -228,6 +183,7 @@ async function uploadPicture() {
                 uploadedFiles.forEach(uploadedFile => {
                     //console.log(uploadedFile)
                     //console.log(uploadedFile.fileUrl)
+                    $w('#profilePhoto').label = ""
                     $w("#photo").src = uploadedFile.fileUrl
                     //$w("#image").expand();
                     Image = uploadedFile.fileUrl;
@@ -241,6 +197,8 @@ async function uploadPicture() {
                 $w("#message").expand();
             });
     } else { // user clicked button but didn't chose a file
+        $w('#photo').src = "wix:image://v1/73f5ce_d7c6bfa5333a4a79b6b3a93b9827666d~mv2.png/_.png#originWidth=1025&originHeight=1025"
+        $w('#profilePhoto').label = "Upload new photo"
         $w("#message").text = "Please choose a file to upload.";
         $w("#message").expand();
     }

@@ -17,22 +17,64 @@ export function email(sender, message, recibe, user) {
                 studentOrParents: user.privateId
             }
             await triggeredEmails.emailMember(emailId, user.privateId, options)
+                .catch(async (error) => {
+                    let json = { error: error, email: "Email2" }
+                    let options = { "suppressAuth": true, "suppressHooks": true };
+                    await wixData.insert('CatchError', json, options)
+                        .catch((err) => console.log('Email 2 err', err));
+                    console.error(error)
+                })
             await wixData.insert('History', json)
-                .catch((err) => console.log('History',err));
+                .catch((err) => console.log('History', err));
             console.log('Email Done')
         })
-        .catch((error) => console.error(error));
+        .catch(async (error) => {
+            let json = { error: error, email: "Email1" }
+            let options = { "suppressAuth": true, "suppressHooks": true };
+            await wixData.insert('CatchError', json, options)
+                .catch((err) => console.log('Email 1 err', err));
+            console.error(error)
+        });
 }
 
 export function newUser(json) {
-    let emailId = "welcome";
+    let emailId
+    if (json.role == "High School Student") emailId = "Wel_HS_Student"
+    else if (json.role == "Parents") emailId = "Wel_Parents"
+    else if (json.role == "College Student") emailId = "Wel_College_Student"
+    else if (json.role == "College Graduate") emailId = "Wel_College_Graduate"
+    else if (json.role == "Counselor") emailId = "Wel_Counselor"
+    else if (json.role == "Sponsor") emailId = "Wel_Sponsor"
+
     const idUser = json.privateId;
     const options = {
         variables: { Name: json.name }
     }
     triggeredEmails.emailMember(emailId, idUser, options)
         .then(async () => {
-            console.log('Email New User Done')
+            console.log('Email New User Done User')
         })
         .catch((error) => console.error(error));
+}
+
+export function newUserAdmin(json) {
+    let message = "Name:" + json.firstName + " " + json.lastName + "\n"
+    message += "Email:" + json.email
+
+    let yourweb = "54ac487a-ae07-4a98-b717-090622ed1491"
+    let admin = "e61b6bcd-5138-489f-b628-779c162274e6"
+    let info = "a023ab60-1945-4f75-abf2-9b7c66104058"
+
+    let emailId = "NewUser";    
+    const options = {
+        variables: {
+            infoUser: message,
+            Role: json.role
+        }
+    }
+    triggeredEmails.emailMember(emailId, admin, options)
+        .then(async () => {
+            console.log('Email New User Done Admin')
+            triggeredEmails.emailMember(emailId, info, options).then(async () => console.log('Email info'))
+        }).catch((error) => console.error(error));
 }

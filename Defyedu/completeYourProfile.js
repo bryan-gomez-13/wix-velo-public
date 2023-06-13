@@ -1,7 +1,7 @@
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import { currentMember } from 'wix-members';
-var role, json
+var role, json, stateV
 
 $w.onReady(function () {
     getProfile();
@@ -11,6 +11,11 @@ $w.onReady(function () {
 
 function init() {
     $w('#save').onClick(() => check())
+    $w('#state').onChange(() => {
+        wixData.query('States').eq('_id',$w('#state').value).find().then((result) => {
+            stateV = result.items[0].state
+        }).catch((err) => console.log(err))
+    })
 }
 
 // ========================================= DROP ========================================= 
@@ -24,15 +29,16 @@ async function drop() {
             $w('#state').options = array;
         }).catch((err) => console.log(err))
 
-    let minYear = 1950
+    
     let date = new Date()
-    let maxYear = date.getFullYear()
+    let minYear = date.getFullYear()
+    let maxYear = date.getFullYear()+4
     let arrayYears = []
-    for (let i = maxYear; i > minYear; i--) {
+    for (let i = minYear; i <= maxYear; i++) {
         arrayYears.push({ label: i+"", value: i+"" })
     }
     $w('#hsGraduationYear').options = arrayYears;
-    $w('#hsGraduationYear').value = maxYear+""
+    $w('#hsGraduationYear').value = minYear+""
 }
 
 // ========================================= GET PROFILE =========================================
@@ -117,6 +123,7 @@ async function save() {
         json.hsGraduationYear = parseInt($w('#hsGraduationYear').value)
         json.city = $w('#city').value
         json.state = $w('#state').value
+        json.stateV = stateV
 
         json.myStory = $w('#myStory').value
         if ($w('#collegeYouWishToAttend').value.length > 0) json.collegeYouWishToAttend = $w('#collegeYouWishToAttend').value

@@ -1,6 +1,8 @@
 import wixSite from 'wix-site';
 import wixData from 'wix-data';
-import { memory } from 'wix-storage';
+import wixWindow from 'wix-window';
+import wixLocation from 'wix-location';
+import { session } from 'wix-storage';
 import { currentMember, authentication } from 'wix-members';
 
 $w.onReady(async function () {
@@ -11,14 +13,18 @@ $w.onReady(async function () {
         await getUser();
         await getRole();
         await getPremium();
+        wixLocation.to('/')
+    });
+
+    authentication.onLogout(() => {
+        session.clear();
     });
 });
 
 async function getPremium() {
-    if (!(wixSite.currentPage.url == "/get-premium" || wixSite.currentPage.url == "/complete-your-profile")) {
+    if (!(wixSite.currentPage.url == "/get-premium" || wixSite.currentPage.url == "/account/my-account")) {
         await currentMember.getRoles()
             .then((roles) => {
-
                 if (roles.length == 0) {
                     $w('#premium').show()
                     $w('#complete').hide()
@@ -28,7 +34,10 @@ async function getPremium() {
                             .then((member) => {
                                 wixData.query("users").eq('privateId', member._id).find()
                                     .then((results) => {
-                                        if (!results.items[0].completeProfile) {
+                                        if (!results.items[0].completeProfile && (wixSite.currentPage.url == "/get-premium" || wixSite.currentPage.url == "/account/my-account")) {
+                                            /*if (wixWindow.formFactor == "Mobile") $w('#roleMM').text = results.items[0].role, $w('#roleMM').show();
+                                            $w('#roleM').text = results.items[0].role
+                                            $w('#roleM').show();*/
                                             $w('#complete').show()
                                             $w('#premium').hide()
                                         }
@@ -46,17 +55,29 @@ async function getPremium() {
 function getUser() {
     currentMember.getMember().then((member) => {
         //console.log(member)
-        if (member == undefined) $w('#signUp').show(), $w('#signUp2').show(), $w('#form2').expand();
-        else $w('#signUp').hide(), $w('#signUp2').hide(), $w('#form2').collapse();
+        if (member == undefined) $w('#signUp').show(), $w('#signUp2').show(), $w('#columnStrip16').expand();
+        else $w('#signUp').hide(), $w('#signUp2').hide(), $w('#columnStrip16').collapse();
 
     }).catch((error) => console.log(0, error));
 }
 
 function getRole() {
-    if (!(memory.getItem("role"))) {
+    if (!(session.getItem("role"))) {
         currentMember.getRoles()
             .then((roles) => {
-                if (!(roles.length == 0)) memory.setItem("role", roles[0].title)
+                if (!(roles.length == 0)) {
+                    session.setItem("role", roles[0].title)
+                    /*
+                    if (wixWindow.formFactor == "Mobile") $w('#roleMM').text = roles[0].title, $w('#roleMM').show();
+                    $w('#roleM').text = roles[0].title
+                    $w('#roleM').show();*/
+                }
             })
+    } else {
+        /*
+        if (wixWindow.formFactor == "Mobile") $w('#roleMM').text = session.getItem("role"), $w('#roleMM').show();
+        $w('#roleM').text = session.getItem("role")
+        $w('#roleM').show();
+        */
     }
 }

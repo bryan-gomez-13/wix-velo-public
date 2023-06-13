@@ -17,7 +17,7 @@ export async function signUp(json, pass, imageId) {
     return await authentication.register(json.email, pass, options).then(async (registrationResult) => {
         console.log(registrationResult)
         //Assign Role
-        if (json.role == "Joker") await authorization.assignRole('c5de49b9-fcce-4853-b6d1-27f718ac357d', registrationResult.member._id, { suppressAuth: false })
+        if (json.role == "Sponsor") await authorization.assignRole('c5de49b9-fcce-4853-b6d1-27f718ac357d', registrationResult.member._id, { suppressAuth: false })
         //Register Email
         await newUser(json = { privateId: registrationResult.member._id, name: json.firstName + " " + json.lastName })
         return { type: 'success', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken, id: registrationResult.member._id }

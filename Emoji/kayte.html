@@ -1,0 +1,61 @@
+<html>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -o-user-select: none;
+        user-select: none;
+    }
+    
+    .bn {
+        background: url('https://static.wixstatic.com/media/9dd312_52b03ad3085f48838af32cf5dd66f0a0~mv2.png') no-repeat scroll 0 0 transparent;
+        height: 42px;
+        width: 42px;
+        background-size: 42px;
+        border: none;
+    }
+    
+    .bn:focus {
+        outline: none !important;
+    }
+</style>
+
+<body>
+    <script type='text/javascript'>
+        document.body.onload = function() {
+            let loaded = false;
+            window.onmessage = msg => {
+                if (msg.data === 'readyCheck') window.parent.postMessage('isReady', '*');
+                else if (msg.data === 'play' && loaded) togglePlay();
+                else if (msg.data.includes('.mp3') && !loaded) {
+                    loaded = true;
+                    let it = document.createElement('AUDIO');
+                    it.setAttribute('src', msg.data);
+                    try {
+                        Promise.all([
+                            () => it.setAttribute('autoplay', true),
+                            () => it.setAttribute('volume', 1),
+                        ])
+                    } catch {
+                        window.parent.postMessage('autoplay not available', '*');
+                    } finally {
+                        document.body.appendChild(it);
+                        document.getElementById('play').onclick = () => togglePlay();
+                    }
+                }
+
+                function togglePlay() {
+                    const audio = document.getElementsByTagName('audio')[0];
+                    audio.paused ? audio.play() : audio.pause();
+                }
+
+            }
+        }
+    </script>
+    <button id="play" class="bn"></button>
+</body>
+
+</html>

@@ -2,19 +2,23 @@ import wixData from 'wix-data';
 
 export async function shipping(options, context) {
     //console.log('Opt', options)
+    //console.log('Context', context)
 
     let items = options.lineItems;
     let frzn = false;
     let weight = 0;
+    let total = 0;
 
     //All products
     for (let i = 0; i < items.length; i++) {
+        //console.log(items[i].physicalProperties.weight + " -- " + items[i].quantity + " -- " + items[i].physicalProperties.weight * items[i].quantity)
         if (items[i].physicalProperties.sku.includes('FRZN')) frzn = true
-        
         weight += items[i].physicalProperties.weight * items[i].quantity
-        //console.log(items[i].name,items[i].physicalProperties.weight, weight)
+        total += parseFloat(items[i].totalPrice);
     }
-    //console.log(weight, frzn, items, options.shippingDestination.subdivision)
+    //console.log(total)
+    //console.log(weight)
+    //console.log(weight, frzn, options.shippingDestination.subdivision)
 
     let wixOptions = {
         "suppressAuth": true,
@@ -29,45 +33,158 @@ export async function shipping(options, context) {
     //console.log('Region', jsonRegion)
     //console.log('Options', jsonOptions)
 
-    let index = 0
-    for (let i = 0; i < jsonOptions.length; i++) {
-        if (!(i == jsonOptions.length - 1)) {
-            if (jsonOptions[i].weightL < weight && weight < jsonOptions[i].weightH) {
-                index = i
-                break
-            }
-        } else index = jsonOptions.length - 1
-    }
-    //console.log('Rate', jsonOptions[index])
-    //console.log(jsonOptions[index].rate)
-
     let shipping = []
-    if (frzn) {
-        shipping.push({
-            "code": jsonRegion.code,
-            "title": jsonRegion.shippingFrozenName,
-            "logistics": {
-                "deliveryTime": jsonRegion.deliveryTime
-            },
-            "cost": {
-                "price": (jsonOptions[index].rate + jsonRegion.value) + "",
-                "currency": context.currency
-            }
-        })
-    } else {
-        shipping.push({
-            "code": jsonRegion.code,
-            "title": jsonRegion.shippingName,
-            "logistics": {
-                "deliveryTime": jsonRegion.deliveryTime
-            },
-            "cost": {
-                "price": jsonOptions[index].rate + "",
-                "currency": context.currency
-            }
-        })
+    let normal = false;
+
+    // ==============================================================   OPTION 1  ==============================================================
+    if (total >= 100) {
+        if (frzn && jsonRegion.shippingName == "Auckland Shipping") {
+            shipping.push({
+                "code": "FreeShipping",
+                "title": "Free Shipping",
+                "logistics": {
+                    "deliveryTime": "Dispatching Mon to Wed"
+                },
+                "cost": {
+                    "price": "0",
+                    "currency": context.currency
+                }
+            })
+        } else if (frzn == false && total >= 100) {
+            shipping.push({
+                "code": "FreeShipping",
+                "title": "Free Shipping",
+                "logistics": {
+                    "deliveryTime": "Dispatching Tomorrow (Business hours)"
+                },
+                "cost": {
+                    "price": "0",
+                    "currency": context.currency
+                }
+            })
+        } else normal = true
+    } else normal = true
+
+    // ==============================================================   NORMAL SHIPPING  ==============================================================
+    if (normal) {
+        let index = 0
+        for (let i = 0; i < jsonOptions.length; i++) {
+            if (!(i == jsonOptions.length - 1)) {
+                if (jsonOptions[i].weightL < weight && (weight < jsonOptions[i].weightH || weight == jsonOptions[i].weightH)) {
+                    index = i
+                    break
+                }
+            } else index = jsonOptions.length - 1
+        }
+        //console.log('Rate', jsonOptions[index])
+        //console.log("Rate:" + jsonOptions[index].rate)
+        //console.log("Frzn:" + jsonOptions[index].rateFrzn)
+
+        if (frzn) {
+            let costPrice = await price(jsonOptions[index].rateFrzn)
+            //console.log("Cost:" + costPrice)
+            shipping.push({
+                "code": jsonRegion.code,
+                "title": jsonRegion.shippingFrozenName,
+                "logistics": {
+                    "deliveryTime": jsonRegion.deliveryTimeFrzn
+                },
+                "cost": {
+                    "price": (costPrice + jsonRegion.value) + "",
+                    "currency": context.currency
+                }
+            })
+        } else {
+            let costPrice = await price(jsonOptions[index].rate)
+            //console.log("Cost:" + costPrice)
+            shipping.push({
+                "code": jsonRegion.code,
+                "title": jsonRegion.shippingName,
+                "logistics": {
+                    "deliveryTime": jsonRegion.deliveryTime
+                },
+                "cost": {
+                    "price": costPrice + "",
+                    "currency": context.currency
+                }
+            })
+        }
     }
 
-    //console.log(shipping)
+    //console.log("shipping", shipping)
     return shipping
+
 }
+
+function price(value) {
+    let value2 = parseInt(value)
+    let total = value - value2
+    if (total < 0.5) return value2
+    else return value2 + 0.5
+}
+
+// ==============================================================   OPTION 2  ==============================================================
+/*
+if (total >= 100) {
+    if (frzn) {
+        // ====================================================================================================================
+        switch (jsonRegion.shippingName) {
+        case "Auckland Shipping":
+            shipping.push({
+                "code": "FreeShipping",
+                "title": "Free Shipping",
+                "logistics": {
+                    "deliveryTime": "Dispatching Tomorrow (Business hours)"
+                },
+                "cost": {
+                    "price": "0",
+                    "currency": context.currency
+                }
+            })
+            break;
+
+        case "South Island Shipping":
+            shipping.push({
+                "code": "FreeShipping",
+                "title": "Frozen Shipping",
+                "logistics": {
+                    "deliveryTime": "Dispatching Mon to Wed"
+                },
+                "cost": {
+                    "price": "15",
+                    "currency": context.currency
+                }
+            })
+            break;
+
+        case "North Island Shipping":
+            shipping.push({
+                "code": "FreeShipping",
+                "title": "Frozen Shipping",
+                "logistics": {
+                    "deliveryTime": "Dispatching Mon to Wed"
+                },
+                "cost": {
+                    "price": "10",
+                    "currency": context.currency
+                }
+            })
+            break;
+
+            // ====================================================================================================================
+        }
+    } else if (frzn == false && total >= 100) {
+        shipping.push({
+            "code": "FreeShipping",
+            "title": "Free Shipping",
+            "logistics": {
+                "deliveryTime": "Dispatching Tomorrow (Business hours)"
+            },
+            "cost": {
+                "price": "0",
+                "currency": context.currency
+            }
+        })
+    } else normal = true
+} else normal = true
+*/

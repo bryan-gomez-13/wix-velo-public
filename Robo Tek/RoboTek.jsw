@@ -1,0 +1,7 @@
+import { contacts } from 'wix-crm-backend';
+
+// Get labels of the forms
+export async function getLabels() {
+    let queryResults = await contacts.queryLabels().find({ suppressAuth: true });
+    return queryResults.items
+}

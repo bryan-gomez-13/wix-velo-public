@@ -1,7 +1,18 @@
 // Para obtener la documentación completa sobre las funciones API, incluidos ejemplos para programa con código, visita http://wix.to/94BuAAs
 import wixData from 'wix-data';
-var datesFree;
+import { cart } from 'wix-stores';
+
+var datesFree, checkNormal;
 $w.onReady(async function () {
+    await getDate();
+    await getCartPage();
+
+    cart.onChange(async (changedCart) => {
+        await getCartPage();
+    });
+});
+
+async function getDate() {
     // TODO: write your page related code here...
     var firstDate;
     var columnName;
@@ -9,10 +20,7 @@ $w.onReady(async function () {
         "suppressAuth": true
     };
 
-    await wixData.query("2023ProductionDates")
-        .limit(1000)
-        .ascending("weeks")
-        .find()
+    await wixData.query("2024ProductionDates").limit(1000).ascending("weeks").find()
         .then((results) => {
             datesFree = results.items;
         });
@@ -67,12 +75,69 @@ $w.onReady(async function () {
     $w("#shoppingCart1").hide();
     $w('#check').onChange(() => {
         if ($w('#check').checked) {
+            checkNormal = true
             $w("#shoppingCart1").show();
-            $w('#Arrow').expand()
+            $w('#group1').expand()
         } else {
+            checkNormal = false
             $w("#shoppingCart1").hide();
-            $w('#Arrow').collapse()
+            $w('#group1').collapse()
         }
     })
+}
 
-});
+function getCartPage() {
+    cart.getCurrentCart()
+        .then((currentCart) => {
+            let normal = false
+            let newProduct = false
+            //console.log(currentCart)
+            if (currentCart.lineItems.length > 0) {
+                for (let i = 0; i < currentCart.lineItems.length; i++) {
+                    if (newProduct == false && (currentCart.lineItems[i].sku.includes('PIT'))) newProduct = true;
+                    else if (normal == false && (currentCart.lineItems[i].sku == "")) normal = true;
+                }
+
+                //console.log("normal", normal)
+                //console.log("newProduct", newProduct)
+
+                if (normal) {
+                    $w('#text49').expand();
+                    $w('#textNextDate').expand();
+                    $w('#image19').expand();
+                    $w('#check').expand();
+                    if (checkNormal) {
+                        $w('#group1').expand();
+                    }
+
+                } else {
+                    $w('#text49').collapse();
+                    $w('#textNextDate').collapse();
+                    $w('#image19').collapse();
+                    $w('#check').collapse();
+                    $w('#group1').collapse();
+                }
+
+                if (newProduct) {
+                    $w('#GmNew').expand();
+                    $w('#image20').expand();
+                    if (normal == false || checkNormal == true) $w("#shoppingCart1").show(), $w('#group1').expand();
+                } else {
+                    $w('#GmNew').collapse();
+                    $w('#image20').collapse();
+                    if (normal == false || checkNormal == false) $w("#shoppingCart1").hide(), $w('#group1').collapse();
+                }
+            } else {
+                $w('#text49').collapse();
+                $w('#textNextDate').collapse();
+                $w('#image19').collapse();
+                $w('#check').collapse();
+
+                $w('#GmNew').collapse();
+                $w('#image20').collapse();
+                $w('#group1').collapse();
+
+                $w('#shoppingCart1').show();
+            }
+        }).catch((error) => console.error(error));
+}

@@ -1,0 +1,261 @@
+import wixData from 'wix-data';
+import { ApplyEmail, newCourseEmail } from 'backend/Emails.jsw'
+
+var options = {
+    "suppressAuth": true,
+    "suppressHooks": true
+};
+// ==================================================================================== DROPDOWNS ====================================================================================
+export async function getDropsBack() {
+    let json = {}
+    // ===================== TIMEZONE DROP =====================
+    await wixData.query("Timezone").ascending('order').find(options)
+        .then((results) => {
+            let array = [];
+            for (let i = 0; i < results.items.length; i++) {
+                array.push({ label: results.items[i].nameOfTimeZone, value: results.items[i].nameOfTimeZone })
+            }
+            json.timezone = array;
+        }).catch((err) => console.log("getDropsBack" + err))
+
+    // ===================== AREA INTEREST =====================
+    await wixData.query("AreaInterest").ascending('title').find(options)
+        .then((results) => {
+            let array = [];
+            for (let i = 0; i < results.items.length; i++) {
+                array.push({ label: results.items[i].title, value: results.items[i].title })
+            }
+            json.areaInterest = array;
+        }).catch((err) => console.log("getDropsBack" + err))
+
+    return json
+}
+// ==================================================================================== MEMBERS ====================================================================================
+export async function getMemberBack(privateId) {
+    // test = cbaf8f0c-0de9-473a-a07e-91535fe1db5a
+    let json = {}
+    await wixData.query("Members").eq('privateId', privateId).find(options)
+        .then((results) => {
+            if (results.items.length > 0) {
+                let item = results.items[0]
+                json.name = item.name
+                json.surname = item.surname
+                json.email = item.email
+                json.role = item.role
+            }
+        }).catch((err) => console.log("getMemberBack", err))
+
+    if (json.role == "Parent") {
+        await wixData.query("Parents").eq('privateId', privateId).find(options)
+            .then((results) => {
+                if (results.items.length > 0) {
+                    let item = results.items[0]
+                    json._id = item._id
+                    json.timeZone = item.timeZone
+                    let address = {
+                        "formatted": item.location,
+                        "city": item.city,
+                        "country": item.country,
+                        "postalCode": item.postalCode
+                    }
+                    json.address = address
+                    json.aboutMe = item.aboutMe
+                    json.passParentArea = item.passParentArea
+                    json.image = item.image
+                } else json.noExist = true
+            }).catch((err) => console.log("getMemberBack", err))
+    } else {
+        await wixData.query("Teacher").eq('privateId', privateId).find(options)
+            .then((results) => {
+                if (results.items.length > 0) {
+                    let item = results.items[0]
+                    json._id = item._id
+                    json.image = item.photo
+                    json.headline = item.headline
+                    json.country = item.country
+                    json.aboutMe = item.aboutMe
+                    json.video = item.video
+                    json.degreesAndCertificates = item.degreesAndCertificates
+                    json.degreesRep = item.arrayDegrees
+                    json.phone = item.phone
+                    json.paypalEmail = item.paypalEmail
+                    json.primaryEmail = item.primaryEmail
+                } else json.noExist = true
+            }).catch((err) => console.log("getMemberBack", err))
+
+        await wixData.query("TeacherApply").eq('privateId', privateId).ascending('_createdDate').find(options)
+            .then((results) => {
+                if (results.items.length > 0) {
+                    let item = results.items[0]
+                    json.applyAproved = item.aproved
+                    json.menuApply = item.againForm
+                } else json.menuApply = true
+            }).catch((err) => console.log("getMemberBack", err))
+    }
+
+    return json
+}
+
+export async function updateParentBack(json) {
+    if (json._id) {
+        await wixData.update("Parents", json, options)
+            .then((results) => console.log(results))
+            .catch((err) => console.log("updateParentBack", err));
+    } else {
+        await wixData.insert("Parents", json, options)
+            .then((item) => console.log(item))
+            .catch((err) => console.log("updateParentBack", err));
+    }
+}
+
+export async function updateTeacherBack(json) {
+    if (json._id) {
+        await wixData.update("Teacher", json, options)
+            .then((results) => console.log(results))
+            .catch((err) => console.log("updateTeacherBack", err));
+    } else {
+        await wixData.insert("Teacher", json, options)
+            .then((item) => console.log(item))
+            .catch((err) => console.log("updateTeacherBack", err));
+    }
+}
+
+export async function updateTeacherApply(json, privateId) {
+    await wixData.query('TeacherApply').eq('_id', json._id).ascending("_createdDate").find(options).then(async (results) => {
+        if (results.items.length > 0) {
+            let jsonApply = results.items[0];
+            jsonApply.privateId = privateId
+            jsonApply.againForm = false
+
+            // Apply Email
+            let jsonEmail = {
+                Id: jsonApply._id,
+                NameTeacher: jsonApply.teacherName,
+                Email: jsonApply.email,
+                Phone: jsonApply.phoneNumber,
+                link: "https://manage.wix.com/dashboard/51a7b09f-d4a0-4ba3-9421-844eaea752a8/database/data/TeacherApply/" + jsonApply._id,
+                Date: jsonApply._createdDate.toDateString()
+            }
+            await ApplyEmail(jsonEmail)
+            //Update User
+            await wixData.update("TeacherApply", jsonApply, options)
+                .then((results) => console.log(results))
+                .catch((err) => console.log("updateTeacherApply", err));
+        } else console.log('Nothing')
+    }).catch((err) => console.log("updateTeacherApply", err));
+}
+// NEW COURSE
+export async function updateCourseTeacher(json, privateId, array, name, aboutMe, image,email) {
+    await wixData.query('Courses1').eq('_id', json._id).ascending("_createdDate").find(options).then(async (results) => {
+        if (results.items.length > 0) {
+            let jsonCourse = results.items[0];
+            jsonCourse.privateId = privateId
+            jsonCourse.arraystring = array
+            jsonCourse.instructorName = name
+            jsonCourse.aboutTheInstructor = aboutMe
+            jsonCourse.instructorImage = image
+
+            // New Course Email
+            let jsonEmail = {
+                Id: jsonCourse._id,
+                CourseName: jsonCourse.title,
+                Email: email,
+                InstructorName: jsonCourse.instructorName,
+                link: "https://manage.wix.com/dashboard/51a7b09f-d4a0-4ba3-9421-844eaea752a8/database/data/Courses1/" + jsonCourse._id,
+                Date: jsonCourse._createdDate.toDateString()
+            }
+            await newCourseEmail(jsonEmail)
+            await wixData.update("Courses1", jsonCourse, options)
+                .then((results) => console.log(results))
+                .catch((err) => console.log("updateCourseTeacher", err));
+        } else console.log('Nothing')
+    }).catch((err) => console.log("updateCourseTeacher", err));
+}
+
+export async function getFromLogin(Id) {
+    // T 70838e55-5831-4990-8b0b-1dd6e37804f3
+    // P 295a0fcf-0fe5-47b4-900a-a8071744034b
+    return await wixData.query('Members').eq('privateId', Id).find(options).then(async (result) => {
+        if (result.items.length > 0) {
+            let member = result.items[0]
+            let collection = ""
+            if (member.role == "Parent") collection = "Parents"
+            else collection = "Teacher"
+            return await wixData.query(collection).eq('privateId', Id).find(options).then((results) => {
+                if (results.items.length > 0) return "/account/courses"
+                else return "/account/my-account"
+            }).catch((err) => console.log("getFromLogin", err))
+        } else return "/"
+    }).catch((err) => console.log("getFromLogin", err))
+}
+
+// ==================================================================================== TEACHER ====================================================================================
+export async function getEnrolledLearners(data) {
+    let learnerArray = []
+    await wixData.query("StudentEnrolled").eq('privateIdClass', data._id).find(options)
+        .then(async (results) => {
+            let item = results.items
+            if (item.length > 0) {
+                for (let i = 0; i < item.length; i++) {
+                    let image = "https://static.wixstatic.com/media/07d5d3_e7ff36b7536d4c278d53894ad5c7e6da~mv2.jpg"
+                    await wixData.query("Parents").eq('privateId', item[i].privateIdStudent).find(options)
+                        .then((resultsParent) => {
+                            if (resultsParent.items.length > 0) image = resultsParent.items[0]
+                        }).catch((err) => console.log("getMemberBack", err))
+
+                    await wixData.query("Leaners").eq('privateId', item[i].privateIdStudent).and(wixData.query("Leaners").eq('name', item[i].nameLearner)).find(options)
+                        .then((learnerR) => {
+                            let learner = learnerR.items
+                            if (learner.length > 0) {
+                                for (let j = 0; j < learner.length; j++) {
+                                    learner[j].image = image
+                                    learner[j].data = data
+                                    learnerArray.push(learner[j])
+                                }
+                            }
+                        }).catch((err) => console.log("getEnrolledLearners", err))
+                }
+            } else learnerArray = []
+        }).catch((err) => console.log("getEnrolledLearners", err))
+    return learnerArray
+}
+
+// ==================================================================================== LEARNER ====================================================================================
+export async function getLearnersBack(privateId) {
+    return await wixData.query("Leaners").eq('privateId', privateId).ascending("_createdDate").find(options)
+        .then((results) => {
+            if (results.items.length > 0) return results.items
+            else {
+                let json = [{
+                    _id: "0",
+                    name: "",
+                    age: "",
+                    teachersKnow: "",
+                    areasOfInterest: [],
+                    preferredTimes: "",
+                    birth: null,
+                }]
+                return json
+            }
+        }).catch((err) => console.log("getLearnersBack", err))
+}
+
+export async function saveLearnerBack(json) {
+    await wixData.query("Leaners").eq('_id', json._id).find(options)
+        .then(async (results) => {
+            if (results.items.length > 0) {
+                await wixData.update("Leaners", json, options)
+                    .then((results) => console.log(results))
+                    .catch((err) => console.log("saveLearnerBack", err));
+            } else {
+                await wixData.insert("Leaners", json, options)
+                    .then((item) => console.log(item))
+                    .catch((err) => console.log("saveLearnerBack", err));
+            }
+        }).catch((err) => console.log("saveLearnerBack", err))
+}
+
+export async function deleteLearnerBack(id) {
+    await wixData.remove("Leaners", id, options).then((results) => console.log(results))
+        .catch((err) => console.log("deleteLearnerBack", err));
+}
