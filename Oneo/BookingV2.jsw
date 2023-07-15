@@ -123,7 +123,6 @@ export async function cancelBooking_V2(book) {
             "revision": book.revision,
         }
         const result = await bookings.cancelBooking(bookingId, options);
-
         return result;
     } catch (error) {
         console.error(error);

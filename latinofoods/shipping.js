@@ -7,18 +7,20 @@ export async function shipping(options, context) {
     let items = options.lineItems;
     let frzn = false;
     let weight = 0;
+    let fWeight = 0;
     let total = 0;
 
     //All products
     for (let i = 0; i < items.length; i++) {
         //console.log(items[i].physicalProperties.weight + " -- " + items[i].quantity + " -- " + items[i].physicalProperties.weight * items[i].quantity)
         if (items[i].physicalProperties.sku.includes('FRZN')) frzn = true
-        weight += items[i].physicalProperties.weight * items[i].quantity
+        fWeight += items[i].physicalProperties.weight * items[i].quantity
         total += parseFloat(items[i].totalPrice);
     }
-    //console.log(total)
-    //console.log(weight)
-    //console.log(weight, frzn, options.shippingDestination.subdivision)
+    weight = fWeight.toFixed(1);
+    //console.log(1, total)
+    //console.log(2, weight)
+    //console.log(3, weight, frzn, options.shippingDestination.subdivision)
 
     let wixOptions = {
         "suppressAuth": true,
@@ -29,15 +31,16 @@ export async function shipping(options, context) {
     let jsonRegion = await wixData.query('SFRegions').eq('_id', jsonCity.regions).find(wixOptions).then((results) => { return results.items[0] })
     let jsonOptions = await wixData.query('SFShippingOptions').eq('region', jsonCity.regions).ascending('weightL').find(wixOptions).then((results) => { return results.items })
 
-    //console.log('City', jsonCity)
-    //console.log('Region', jsonRegion)
-    //console.log('Options', jsonOptions)
+    //console.log(4, 'City', jsonCity)
+    //console.log(5, 'Region', jsonRegion)
+    //console.log(6, 'Options', jsonOptions)
 
     let shipping = []
     let normal = false;
 
     // ==============================================================   OPTION 1  ==============================================================
     if (total >= 100) {
+        //console.log(7, '100')
         if (frzn && jsonRegion.shippingName == "Auckland Shipping") {
             shipping.push({
                 "code": "FreeShipping",
@@ -64,21 +67,23 @@ export async function shipping(options, context) {
             })
         } else normal = true
     } else normal = true
+    //console.log(normal)
 
     // ==============================================================   NORMAL SHIPPING  ==============================================================
     if (normal) {
+        //console.log(8, "normal")
         let index = 0
         for (let i = 0; i < jsonOptions.length; i++) {
             if (!(i == jsonOptions.length - 1)) {
-                if (jsonOptions[i].weightL < weight && (weight < jsonOptions[i].weightH || weight == jsonOptions[i].weightH)) {
+                if ((jsonOptions[i].weightL < weight || jsonOptions[i].weightL == weight) && (weight < jsonOptions[i].weightH || weight == jsonOptions[i].weightH)) {
                     index = i
                     break
                 }
             } else index = jsonOptions.length - 1
         }
-        //console.log('Rate', jsonOptions[index])
-        //console.log("Rate:" + jsonOptions[index].rate)
-        //console.log("Frzn:" + jsonOptions[index].rateFrzn)
+        //console.log(9, 'Rate', jsonOptions[index])
+        //console.log(10, "Rate:" + jsonOptions[index].rate)
+        //console.log(11, "Frzn:" + jsonOptions[index].rateFrzn)
 
         if (frzn) {
             let costPrice = await price(jsonOptions[index].rateFrzn)
@@ -111,7 +116,7 @@ export async function shipping(options, context) {
         }
     }
 
-    //console.log("shipping", shipping)
+    //console.log(13, "shipping", shipping)
     return shipping
 
 }

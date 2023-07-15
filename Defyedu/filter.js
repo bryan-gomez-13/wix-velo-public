@@ -20,7 +20,10 @@ function init() {
     // filter
     $w('#filter').onChange(() => {
         Repeter();
-        if (premium) getState();
+        if (premium) {
+            $w('#premiumTxT').collapse();
+            getState();
+        }else $w('#premiumTxT').expand();
     })
     $w('#state').onChange(async () => {
         await stateAll();
@@ -172,8 +175,6 @@ function cityAll() {
     } else if (cityAllB) {
         $w('#city').value = [];
         cityAllB = false;
-        $w('#city').options = [{ label: 'Filter By', value: '' }]
-        $w('#city').disable();
     }
 }
 // ============================================== GET ARRAY CS ==============================================

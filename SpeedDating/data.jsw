@@ -1,0 +1,64 @@
+import { contacts } from 'wix-crm-backend';
+import wixData from 'wix-data';
+import { triggeredEmails } from 'wix-crm-backend';
+
+export async function createContact(info) {
+    console.log('Contact')
+    let member = await getContact(info.email);
+    if (!(member.items.length > 0)) {
+        const contactInfo = {
+            name: { first: info.firstName, last: info.lastName },
+            emails: [{ tag: "MAIN", email: info.email }],
+            phones: [{ tag: "HOME", phone: info.phoneNumber }],
+        };
+
+        const options = {
+            allowDuplicates: false,
+            suppressAuth: true
+        };
+
+        return await contacts.createContact(contactInfo, options)
+            .then((contact) => { return contact })
+            .catch((error) => console.error(error));
+    } else {
+        return member.items[0]
+    }
+
+}
+// ================================================== SEARCH CONTACT
+export async function getContact(email) {
+    let option = { suppressAuth: true }
+    let emailInfo = await contacts.queryContacts().eq('info.emails.email', email).find(option);
+    return emailInfo
+}
+// ================================================== SEND EMAIL ADMIN
+export async function sendEmail(info) {
+    console.log('Email')
+    let emailId = "email";
+    let link = await getId(info.email)
+
+    // bryan.gh041399@gmail.com      "e8c91c95-7e0b-4e50-9a2b-dc8449fd1ca5"
+    // sd                            "f54d62aa-74bc-4f4c-9dd1-388f8775dbe3"
+    // info@yourweb.co.nz            "7c98c6d7-58f8-4d27-a0ff-2ed84ea246f3"     "6655c0ab-40b6-4c5c-9033-b678111243d8"
+
+    const idUser = "e8c91c95-7e0b-4e50-9a2b-dc8449fd1ca5"
+
+    const options = {
+        variables: {
+            phoneNumber: info.phoneNumber,
+            email: info.email,
+            lastName: info.lastName,
+            firstName: info.firstName,
+            link: "https://manage.editorx.com/dashboard/cd5d0aad-237f-4641-ad7c-426511461baf/database/data/SpeedDating/" + link._id
+        }
+    }
+
+    triggeredEmails.emailContact(emailId, idUser, options)
+        .then(() => console.log("Email Contact Done"))
+        .catch((error) => console.error(error));
+}
+
+export async function getId(email) {
+    let options = { "suppressAuth": true, "suppressHooks": true};
+    return await wixData.query('SpeedDating').eq("email", email).descending('_createdDate').find(options).then((result) => { return result.items[0] })
+}

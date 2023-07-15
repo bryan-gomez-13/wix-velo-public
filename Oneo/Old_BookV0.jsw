@@ -1,0 +1,40 @@
+import { bookings } from "wix-bookings-backend";
+import { orders } from 'wix-pricing-plans-backend';
+
+export function queryBookingsSS(contact) {
+    // 55c9da2e-50e4-4a27-acd1-974792521f47
+    return bookings.queryBookings().eq('contactId', contact).find({ suppressAuth: true }).then((queryResult) => { return queryResult.items; })
+        .catch((error) => { return error; });
+}
+
+export function cancelBooking() {
+    const bookingId = "eeb2fc14-d3b6-40bb-b240-48678d0c87b1";
+    const cancelBookingOptions = {
+        participantNotification: {
+            notifyParticipants: true,
+            message: "Custom cancel booking message"
+        },
+        flowControlSettings: {
+            ignoreCancellationPolicy: false
+        },
+        suppressAuth: true
+    };
+
+    return bookings.cancelBooking(bookingId, cancelBookingOptions)
+        .then((id) => {
+            return id;
+        })
+        .catch((error) => {
+            return error;
+        });
+}
+
+export async function myGetOrderFunction(orderId) {
+    try {
+        const order = await orders.getOrder(orderId, {suppressAuth: true});
+        console.log('order: ', order);
+        return order;
+    } catch (error) {
+        console.error(error);
+    }
+}

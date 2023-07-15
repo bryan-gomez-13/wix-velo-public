@@ -143,6 +143,10 @@ export async function cancelBooking_V2(book) {
             "revision": book.revision,
             "suppressAuth": true
         }
+        console.log("===== Cancel Book V2 =====")
+        console.log("https://www.wix.com/velo/reference/wix-bookings-v2/bookings/cancelbooking")
+        console.log("bookingId", bookingId)
+        console.log("options", options)
         const result = await bookings.cancelBooking(bookingId, options);
 
         return result;
@@ -167,6 +171,19 @@ export async function getSession(sessionId) {
 export async function queryExtendedBookings(contactID) {
     // yourweb.team22@gmail.com - 55c9da2e-50e4-4a27-acd1-974792521f47
     let dateNow = new Date();
+
+    // =========================== The query before ============================
+    //   let query = {
+    //     "query": {
+    //         "filter": {
+    //             "contactDetails.contactId": { "$eq": contactID },
+    //             "startDate": { "$gte": dateNow },
+    //         },
+    //         "paging":null,
+    //         "sort": [{ "startDate": dateNow, "order": "ASC" }]
+    //     }
+    // }
+    // =========================================================================
 
     let query = {
         "filter": {

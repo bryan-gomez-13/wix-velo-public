@@ -1,0 +1,121 @@
+import wixData from 'wix-data';
+import { orders } from 'wix-pricing-plans-backend';
+
+var options = {
+    "suppressAuth": true,
+    "suppressHooks": true
+};
+
+var arrayServices = []
+
+export async function insertMembership(plan, purchasedOrder, privateId, order) {
+    let date = purchasedOrder.order.startDate
+    date.setMonth((date.getMonth() + 1))
+
+    let toInsert = {
+        "plan": purchasedOrder.order.planId,
+        "order": order,
+        "privateId": privateId,
+        "startDate": purchasedOrder.order.startDate,
+        "endDate": date,
+        "sessions": parseInt(plan.number),
+        "remindSessions": parseInt(plan.number),
+        "status": true
+    };
+
+    return await wixData.insert("Membership", toInsert, options)
+        .then((item) => {
+            console.log(item); //see item below
+            return item
+            //wixLocation.to('/booking-v2')
+        }).catch((err) => { return err });
+}
+
+export async function getMembership(member, plan, Option, Action) {
+    return await wixData.query('Membership').eq('privateId', member).and(wixData.query('Membership').eq('status', true)).and(wixData.query('Membership').eq('plan', plan)).find(options).then(async (results) => {
+        if (Option) {
+            let item = results.items[0]
+            if (Action == "L") item.remindSessions = item.remindSessions - 1
+            else item.remindSessions = item.remindSessions + 1
+
+            await wixData.update("Membership", item, options).then((results) => {
+                console.log(results);
+            }).catch((err) => { return err })
+
+        } else return results.items[0]
+    }).catch((err) => { return err })
+}
+
+export async function getReference(planID) {
+    return await wixData.queryReferenced("PlansAndBookings", planID, "booking")
+        .then((results) => {
+            for (let i = 0; i < results.items.length; i++) {
+                if (!(arrayServices.includes(results.items[i]._id))) arrayServices.push(results.items[i]._id)
+            }
+        }).catch((err) => console.log(err));
+}
+
+export async function getPlanByBooking(booking, arrayPlans) {
+    return await wixData.query('PlansAndBookings').hasSome('booking', [booking]).find(options).then(async (results) => {
+        let item
+        console.log("PlansAndBookings", results.items)
+        for (let i = 0; i < arrayPlans.length; i++) {
+            for (let j = 0; j < results.items.length; j++) {
+                if (arrayPlans[i].planId == results.items[j].plan) item = arrayPlans[i].planId
+            }
+        }
+        return item
+    }).catch((err) => { return err })
+}
+
+export async function getRemingCourse(booking, plan) {
+    return await wixData.query('PlansAndBookings').hasSome('booking', [booking]).and(wixData.query('PlansAndBookings').eq('plan', plan)).find(options).then(async (results) => {
+        if (results.items.length > 0) return true
+        else return false
+    }).catch((err) => { return err })
+}
+
+export async function getRemingCourse2() {
+    return await wixData.query('PlansAndBookings').find(options).then(async (results) => {
+        return results.items
+    }).catch((err) => { return err })
+}
+
+export async function getPlans(plans) {
+    return await wixData.query('PlansAndBookings').hasSome('plan', plans).find(options).then(async (results) => {
+        arrayServices = []
+        for (let i = 0; i < results.items.length; i++) {
+            await getReference(results.items[i]._id)
+        }
+        return arrayServices
+    }).catch((err) => { return err })
+}
+
+export async function getMySubscriptions(member) {
+    return await wixData.query('Membership').eq('privateId', member).and(wixData.query('Membership').eq('status', true)).find(options).then(async (results) => {
+        return results.items
+    }).catch((err) => { return err })
+}
+
+export async function getPlanInfo(plan) {
+    return await wixData.query('PaidPlans/Plans').eq('_id', plan).find(options).then(async (results) => {
+        return results.items[0]
+    }).catch((err) => { return err })
+}
+
+export async function changeStatus(info) {
+    info.status = false; 
+    delete info.planInfo;
+    return await wixData.update("Membership", info, options).then((results) => {
+        return results
+    }).catch((err) => { return err })
+}
+
+export async function cancelMyPlan(orderId) {
+    try {
+        const order = await orders.cancelOrder(orderId, "IMMEDIATELY", options);
+        return order;
+    } catch (error) {
+        console.error(error);
+    }
+}

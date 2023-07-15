@@ -1,0 +1,153 @@
+import wixPayBackend from 'wix-pay-backend';
+import { contacts } from 'wix-crm-backend';
+import wixData from 'wix-data';
+import { triggeredEmails } from 'wix-crm-backend';
+// ================================================== CREATE PAYMENT ==================================================
+export function createMyPayment(amount) {
+    return wixPayBackend.createPayment({
+        items: [{
+            name: "Donation",
+            price: amount
+        }],
+        amount: amount
+    });
+}
+// ================================================== DONATION ==================================================
+export async function saveInfo(json) {
+    let options = {
+        "suppressAuth": true,
+        "suppressHooks": true
+    };
+
+    await wixData.insert("Donate", json, options)
+        .then(async (result) => {
+            json.link = "https://manage.wix.com/dashboard/c6004b66-63fa-4b1e-9f7a-5d02193ce0a6/database/data/Donate/" + result._id
+            //console.log(json)
+            await sendEmail(json)
+        }).catch((err) => console.log(err));
+}
+// ================================================== SEND EMAIL ADMIN
+export async function sendEmail(info) {
+    let emailId = "Email";
+
+    // bryan@yourweb.co.nz      b2b69e5c-48e3-4639-8db0-870f8452e2e9
+    // yourweb                  55c9da2e-50e4-4a27-acd1-974792521f47
+    // info@yourweb.co.nz       87cef407-2a70-47e8-ad51-7073a63fabe6
+
+    const idUser = "55c9da2e-50e4-4a27-acd1-974792521f47"
+
+    const options = {
+        variables: {
+            name: info.name,
+            addressPayment: info.addressPayment,
+            amount: info.amount,
+            currency: info.currency,
+            status: info.status,
+            link: info.link,
+            address: info.address,
+            message: info.message,
+            transactionId: info.transactionId,
+        }
+    }
+
+    triggeredEmails.emailContact(emailId, idUser, options)
+        .then(() => console.log("Email Done"))
+        .catch((error) => console.error(error));
+}
+
+// ================================================== GIFT ==================================================
+// ================================================== SAVE
+export async function saveGift(json) {
+    let options = {
+        "suppressAuth": true,
+        "suppressHooks": true
+    };
+
+    await wixData.insert("Giftamembership", json, options)
+        .then(async (result) => {
+            json.link = "https://manage.wix.com/dashboard/c6004b66-63fa-4b1e-9f7a-5d02193ce0a6/database/data/Giftamembership/" + result._id
+            //console.log(json)
+            await sendEmailGift(json)
+            let contact = await createContact(json)
+            await sendEmailContact(json, contact._id)
+        }).catch((err) => console.log(err));
+}
+// ================================================== CREATE CONTACT
+export async function createContact(info) {
+    let member = await getContact(info.address);
+    if (!(member.items.length > 0)) {
+        const contactInfo = {
+            name: { first: info.nameForm },
+            emails: [{ tag: "MAIN", email: info.address }]
+        };
+
+        const options = {
+            allowDuplicates: false,
+            suppressAuth: true
+        };
+
+        return contacts.createContact(contactInfo, options)
+            .then((contact) => { return contact })
+            .catch((error) => console.error(error));
+    }else {
+        return member.items[0]
+    }
+
+}
+// ================================================== SEARCH CONTACT
+export async function getContact(email) {
+    let option = { suppressAuth: true }
+    let emailInfo = await contacts.queryContacts().eq('info.emails.email', email).find(option);
+    return emailInfo
+}
+// ================================================== SEND EMAIL ADMIN
+export async function sendEmailGift(info) {
+    let emailId = "Email_Gift";
+
+    // bryan@yourweb.co.nz      b2b69e5c-48e3-4639-8db0-870f8452e2e9
+    // yourweb                  55c9da2e-50e4-4a27-acd1-974792521f47
+    // info@yourweb.co.nz       87cef407-2a70-47e8-ad51-7073a63fabe6
+
+    const idUser = "55c9da2e-50e4-4a27-acd1-974792521f47"
+
+    const options = {
+        variables: {
+            namePayment: info.namePayment,
+            nameForm: info.nameForm,
+            addressPayment: info.addressPayment,
+            amount: info.amount,
+            currency: info.currency,
+            status: info.status,
+            link: info.link,
+            address: info.address,
+            message: info.message,
+            transactionId: info.transactionId,
+        }
+    }
+
+    triggeredEmails.emailContact(emailId, idUser, options)
+        .then(() => console.log("Email Admin Done"))
+        .catch((error) => console.error(error));
+}
+// ================================================== SEND EMAIL RECIPIENT
+export async function sendEmailContact(info, contact) {
+    let emailId = "Email_Contacts";
+
+    // bryan@yourweb.co.nz      b2b69e5c-48e3-4639-8db0-870f8452e2e9
+    // info@yourweb.co.nz       87cef407-2a70-47e8-ad51-7073a63fabe6
+
+    const idUser = contact
+
+    const options = {
+        variables: {
+            name: info.nameForm,
+            message: info.message,
+            address: info.address,
+            link: "https://yourwebnz.wixsite.com/new-oneo/gift-card-25"
+        }
+    }
+
+    triggeredEmails.emailContact(emailId, idUser, options)
+        .then(() => console.log("Email Contact Done"))
+        .catch((error) => console.error(error));
+}

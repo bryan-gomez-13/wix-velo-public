@@ -1,0 +1,13 @@
+import wixStoresBackend from 'wix-stores-backend';
+
+export function decrementInventory(decrementInfo) {
+    return wixStoresBackend.decrementInventory(decrementInfo);
+}
+
+export function getProductVariants(productId) {
+    return wixStoresBackend.getProductVariants(productId);
+}
+
+export function createOrder(fullOrder) {
+    return wixStoresBackend.createOrder(fullOrder);
+}

@@ -1,0 +1,161 @@
+import wixData from 'wix-data';
+import { getLastOrder, getFreeDates, updateFreeDate } from 'backend/data';
+var lastOrder;
+var datesFree;
+var firstDate;
+var columnName;
+var currentOrder;
+
+export async function initialize(order) {
+    const orderNumber = order.number;
+    currentOrder = orderNumber;
+    //console.log(currentOrder)
+    await getLast();
+    if (lastOrder !== currentOrder) {
+        await getFree();
+        await getFirstDate();
+        await setColumn();
+        /*
+                let validate = 0;
+                for(let i = 0; i < datesFree.length; i++){
+                    /*console.log('HEREEEEE');
+                    console.log('L ' + datesFree[i].l + '   ' + currentOrder);
+                    console.log('M ' + datesFree[i].m + '   ' + currentOrder);
+                    console.log('X ' + datesFree[i].x + '   ' + currentOrder);
+                    console.log('J ' + datesFree[i].j + '   ' + currentOrder);
+                    if(datesFree[i].l == currentOrder || datesFree[i].m == currentOrder || datesFree[i].x == currentOrder || datesFree[i].j == currentOrder){
+                        validate = 1;
+                        //console.log('BAAAAAAAAAAAD');
+                        break;
+                    }else{
+                        validate = 0;
+                    }
+                }
+
+                console.log(validate)
+                
+                if(validate === 1){
+                    console.log('page reloaded');
+                }else{
+                    await getFirstDate();
+                    await setColumn();
+                }*/
+    }
+}
+
+export async function setColumn() {
+    var toUpdate = firstDate;
+    switch (columnName) {
+    case "l":
+        toUpdate.l = lastOrder.number.toString();
+        break;
+    case "m":
+        toUpdate.m = lastOrder.number.toString();
+        break;
+    case "x":
+        toUpdate.x = lastOrder.number.toString();
+        break;
+    case "j":
+        toUpdate.j = lastOrder.number.toString();
+        break;
+    case "v":
+        toUpdate.v = lastOrder.number.toString();
+        break;
+    case "s":
+        toUpdate.s = lastOrder.number.toString();
+        break;
+    case "d":
+        toUpdate.d = lastOrder.number.toString();
+        break;
+    default:
+        break;
+    }
+    //console.log("toupdate", toUpdate);
+    //console.log(typeof toUpdate);
+
+    var dataUpdate = {
+        "_id": firstDate._id,
+        "title": toUpdate.title,
+        "s": toUpdate.s,
+        "x": toUpdate.x,
+        "j": toUpdate.j,
+        "weeks": toUpdate.weeks,
+        "v": toUpdate.v,
+        "l": toUpdate.l,
+        "d": toUpdate.d,
+        "m": toUpdate.m,
+    }
+    //console.log(dataUpdate);
+
+    updateFreeDate(dataUpdate).then(result => {
+        //console.log("updated thank", result);
+    });
+}
+export async function getLast() {
+    /*let options = {
+        "suppressAuth": true,
+        "suppressHooks": true,
+    };*/
+
+    await getLastOrder().then(result => {
+        lastOrder = result;
+    });
+    //console.log("lastorder", lastOrder);
+}
+export async function getFree() {
+    await getFreeDates().then(function (freeD) {
+        datesFree = freeD;
+        //console.log("datesFree", datesFree)
+    });
+}
+export async function getFirstDate() {
+
+    for (var m = 0; m < datesFree.length; m++) {
+        //console.log(datesFree[m].l);
+        //console.log(typeof datesFree[m].l)
+        if (datesFree[m].l === '' || typeof datesFree[m].l === 'undefined') {
+            //console.log("encontre undefined en l");
+            firstDate = datesFree[m];
+            columnName = "l";
+            break;
+        }
+        if (datesFree[m].m === '' || typeof datesFree[m].m === 'undefined') {
+            //console.log("encontre undefined en m");
+            firstDate = datesFree[m];
+            columnName = "m";
+            break;
+        }
+        if (datesFree[m].x === '' || typeof datesFree[m].x === 'undefined') {
+            //console.log("encontre undefined en x");
+            firstDate = datesFree[m];
+            columnName = "x";
+            break;
+        }
+        if (datesFree[m].j === '' || typeof datesFree[m].j === 'undefined') {
+            //console.log("encontre undefined en j");
+            firstDate = datesFree[m];
+            columnName = "j";
+            break;
+        }
+        if (datesFree[m].v === '' || typeof datesFree[m].v === 'undefined') {
+            //console.log("encontre undefined en v");
+            firstDate = datesFree[m];
+            columnName = "v";
+            break;
+        }
+        if (datesFree[m].s === '' || typeof datesFree[m].s === 'undefined') {
+            //console.log("encontre undefined en s");
+            firstDate = datesFree[m];
+            columnName = "s";
+            break;
+        }
+        if (datesFree[m].d === '' || typeof datesFree[m].d === 'undefined') {
+            //console.log("encontre undefined en d");
+            firstDate = datesFree[m];
+            columnName = "d";
+            break;
+        }
+    }
+    //console.log("first date", firstDate);
+    //console.log("Colum", columnName);
+}

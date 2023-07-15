@@ -1,6 +1,7 @@
 // Para obtener la documentación completa sobre las funciones API, incluidos ejemplos para programa con código, visita http://wix.to/94BuAAs
 import wixData from 'wix-data';
 import { cart } from 'wix-stores';
+import wixWindow from 'wix-window';
 
 var datesFree, checkNormal;
 $w.onReady(async function () {
@@ -77,11 +78,12 @@ async function getDate() {
         if ($w('#check').checked) {
             checkNormal = true
             $w("#shoppingCart1").show();
-            $w('#group1').expand()
+            if (wixWindow.formFactor !== "Mobile") $w('#group1').expand()
+
         } else {
             checkNormal = false
             $w("#shoppingCart1").hide();
-            $w('#group1').collapse()
+            if (wixWindow.formFactor !== "Mobile") $w('#group1').collapse()
         }
     })
 }
@@ -107,7 +109,7 @@ function getCartPage() {
                     $w('#image19').expand();
                     $w('#check').expand();
                     if (checkNormal) {
-                        $w('#group1').expand();
+                        if (wixWindow.formFactor !== "Mobile") $w('#group1').expand();
                     }
 
                 } else {
@@ -115,17 +117,23 @@ function getCartPage() {
                     $w('#textNextDate').collapse();
                     $w('#image19').collapse();
                     $w('#check').collapse();
-                    $w('#group1').collapse();
+                    if (wixWindow.formFactor !== "Mobile") $w('#group1').collapse();
                 }
 
                 if (newProduct) {
                     $w('#GmNew').expand();
                     $w('#image20').expand();
-                    if (normal == false || checkNormal == true) $w("#shoppingCart1").show(), $w('#group1').expand();
+                    if (normal == false || checkNormal == true) {
+                        $w("#shoppingCart1").show()
+                        if (wixWindow.formFactor !== "Mobile") $w('#group1').expand();
+                    }
                 } else {
                     $w('#GmNew').collapse();
                     $w('#image20').collapse();
-                    if (normal == false || checkNormal == false) $w("#shoppingCart1").hide(), $w('#group1').collapse();
+                    if (normal == false || checkNormal == false) {
+                        $w("#shoppingCart1").hide()
+                        if (wixWindow.formFactor !== "Mobile") $w('#group1').collapse();
+                    }
                 }
             } else {
                 $w('#text49').collapse();
@@ -135,7 +143,7 @@ function getCartPage() {
 
                 $w('#GmNew').collapse();
                 $w('#image20').collapse();
-                $w('#group1').collapse();
+                if(wixWindow.formFactor !== "Mobile") $w('#group1').collapse();
 
                 $w('#shoppingCart1').show();
             }

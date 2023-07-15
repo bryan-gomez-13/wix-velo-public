@@ -1,0 +1,86 @@
+// Filename: backend/data.jsw (web modules need to have a .jsw extension)
+import wixData from 'wix-data';
+import wixStores from 'wix-stores-backend';
+
+/*var productionOrders;
+export function getPruductionOrders(){
+	let options = {
+	"suppressAuth": true
+		};
+return wixData.query("ProductionOrders")
+  .find(options)
+  .then( (results) => {
+	  console.log(results.items);
+    wixData.insert('backendLog', {'title': "funciona production esta vez"})
+	
+	productionOrders = results.items;
+  } );
+}*/
+
+export async function getLastOrder() {
+    let options = {
+        "suppressAuth": true
+    };
+    var orders;
+    var lastOrder;
+    return await wixData.query("Stores/Orders")
+        .find(options)
+        .then((results) => {
+            orders = results.items;
+            lastOrder = orders[0];
+            return lastOrder;
+            //console.log(lastOrder);
+            //Promise.resolve(lastOrder);
+        });
+
+}
+
+export function getFreeDates() {
+    let options = {
+        "suppressAuth": true
+    };
+    var freeDates;
+    return wixData.query("2024ProductionDates")
+        .ascending('weeks')
+        .limit(1000)
+        .find(options)
+        .then((results) => {
+            freeDates = results.items;
+            return freeDates;
+        });
+}
+
+export function updateFreeDate(dataUpdate) {
+    let dataUpdateF = dataUpdate;
+    let options = {
+        "suppressAuth": true
+    };
+    return wixData.update("2024ProductionDates", dataUpdateF, options)
+        .then((results) => {
+            let item = results; //see item below
+            console.log("update ok", item);
+            return item;
+        })
+        .catch((err) => {
+            console.log("production dates error", typeof dataUpdateF);
+            let errorMsg = err;
+        });
+}
+
+//Use the following code in one of your site's front-end files
+//to call the multiply function from backend/data.jsw.
+
+/* 
+import {multiply} from 'backend/data';
+
+$w.onReady(function () {
+	
+	multiply(4,5).then(product => {
+	    console.log(product);
+	      // Logs: 20
+	})
+	.catch(error => {
+		console.log(error);
+	});
+});
+*/
