@@ -1,32 +1,35 @@
 import wixData from 'wix-data';
 import wixPaidPlans from 'wix-paid-plans';
+import wixWindow from 'wix-window';
 import { currentMember, authentication } from 'wix-members';
 import { availabilityCalendar } from 'wix-bookings.v2';
 
 import { orders } from 'wix-pricing-plans';
-//import { orders } from 'wix-pricing-plans.v2';
-
 import wixLocation from 'wix-location';
-//import wixPricingPlans from 'wix-pricing-plans.v2';
 
-import { getContact, bookSlot_Back, cancelBooking_V2, getSession, queryExtendedBookings_V2 } from 'backend/BookingV2.jsw'
-import { getPlans, getMembership, getPlanByBooking, getRemingCourse } from 'backend/data.jsw'
+import { getContact, cancelBooking_V2, getSession, queryExtendedBookings_V2 } from 'backend/BookingV2.jsw'
+import { getPlans } from 'backend/data.jsw'
 
 var arraySessions = [],
     repArray = [],
     arrayS = [],
-    arrayPlans = [],
-    arrayRemind = [],
     plans = []
 
-var services, member, contactID, slot = "",
+var services, member, contactID,
     cancel = "",
-    courseAvailable
+    courseAvailable, errToWixData
 var todayDate, newDate0, newDate1
 
 $w.onReady(async function () {
     let dateNow = new Date();
-    $w('#dateNow').text = dateNow.toDateString();
+    var hour = dateNow.getHours();
+    var minutes = dateNow.getMinutes();
+    var period = (hour >= 12) ? "PM" : "AM";
+    hour = (hour > 12) ? hour - 12 : hour;
+    hour = ("0" + hour).slice(-2);
+    minutes = ("0" + minutes).slice(-2);
+
+    $w('#dateNow').text = dateNow.toDateString() + " | " + hour + ":" + minutes + " " + period;
     init();
     initialFunctions();
     authentication.onLogin(async (member) => initialFunctions());
@@ -35,6 +38,11 @@ $w.onReady(async function () {
 async function init() {
     $w('#BTsessions').onClick(() => { $w('#box').changeState('session'), $w('#BTsessions').disable(), $w('#BTownSessions').enable() })
     $w('#BTownSessions').onClick(() => { $w('#box').changeState('ownSessions'), $w('#BTownSessions').disable(), $w('#BTsessions').enable() })
+    $w('#goToBooking').onClick(() => { $w('#box').changeState('ownSessions'), $w('#BTownSessions').disable(), $w('#BTsessions').enable() })
+
+    $w('#BTerrBook').onClick(async () => { errToWixData.button = "Book", await wixData.insert('Userissues', errToWixData, { suppressAuth: true }).catch(async (err) => { await wixData.insert('CatchError', { title: "Book issue Book", error: err, info: errToWixData }, { "suppressAuth": true, "suppressHooks": true }) }) })
+    $w('#BTerrMyBook').onClick(async () => { errToWixData.button = "My Bookings", await wixData.insert('Userissues', errToWixData, { suppressAuth: true }).catch(async (err) => { await wixData.insert('CatchError', { title: "Book issue My Book", error: err, info: errToWixData }, { "suppressAuth": true, "suppressHooks": true }) }) })
+    $w('#BTerrCancel').onClick(async () => { errToWixData.button = "Cancel", await wixData.insert('Userissues', errToWixData, { suppressAuth: true }).catch(async (err) => { await wixData.insert('CatchError', { title: "Book issue Cancel", error: err, info: errToWixData }, { "suppressAuth": true, "suppressHooks": true }) }) })
 
     // ======================= Buttons function about next month and last month
     $w('#lastMonth').onClick(async () => {
@@ -83,44 +91,117 @@ async function init() {
             if (DMinutes == 0) $item('#repSessionTimeSlots').text = DHours + " h | " + itemData.openSpots + " spots available"
             else $item('#repSessionTimeSlots').text = DHours + " h " + DMinutes + " min | " + itemData.openSpots + " spots available"
         }
-        let showBo = true
-        for (let i = 0; i < repArray.length; i++) {
-            if ((repArray[i].bookedEntity.slot.sessionId == itemData.slot.sessionId) && repArray[i].status == "CONFIRMED") {
-                $item('#alreadyBook').show();
-                $item('#bookNow').collapse();
-                $item('#alreadyBooked').expand();
-                showBo = false
+        //console.log(itemData.slot)
+        /*
+        switch (itemData.slot.serviceId) {
+        case "68c11126-b710-4259-b4cd-403a5e7c4081":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/coherence-healing"
+            break;
+        case "c3d7eaf5-4be6-47bf-8dfc-9f7f971342aa":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/tesla-3-6-9-1"
+            break;
+        case "c0f437a0-2b59-4a92-b32b-302fdaa16ea9":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/silent-deeply-connected"
+            break;
+        case "7cb9074f-6348-4ee0-b744-65d7e8f62902":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/buddha-s-cave"
+            break;
+        case "b511c0bc-901e-46d6-84cb-5017a6fb40d5":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/you-2-0"
+            break;
+        case "7c6f073c-5405-42ac-8e85-c436b134c41c":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/shivas-tunnel"
+            break;
+        case "e3b7b40a-c831-409f-9302-430c1bebb548":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/unshackle"
+            break;
+        case "e798dbd8-52eb-463f-9e54-99754d7f4821":
+            $item('#btBook').link = "https://www.oneo.love/booking-calendar/self-reflective-mirror"
+            break;
+        default:
+            console.log('PP')
+            $item('#btBook').link = "https://www.oneo.love/booking-temp"
+            break;
+        }
+        */
+        $item('#btBook').onClick(() => {
+            switch (itemData.slot.serviceId) {
+            case "68c11126-b710-4259-b4cd-403a5e7c4081":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/coherence-healing";
+                wixLocation.to("https://www.oneo.love/booking-calendar/coherence-healing");
                 break;
+            case "c3d7eaf5-4be6-47bf-8dfc-9f7f971342aa":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/tesla-3-6-9-1"
+                wixLocation.to("https://www.oneo.love/booking-calendar/tesla-3-6-9-1");
+                break;
+            case "c0f437a0-2b59-4a92-b32b-302fdaa16ea9":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/silent-deeply-connected";
+                wixLocation.to("https://www.oneo.love/booking-calendar/silent-deeply-connected");
+                break;
+            case "7cb9074f-6348-4ee0-b744-65d7e8f62902":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/buddha-s-cave"
+                wixLocation.to("https://www.oneo.love/booking-calendar/buddha-s-cave");
+                break;
+            case "b511c0bc-901e-46d6-84cb-5017a6fb40d5":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/you-2-0"
+                wixLocation.to("https://www.oneo.love/booking-calendar/you-2-0");
+                break;
+            case "7c6f073c-5405-42ac-8e85-c436b134c41c":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/shivas-tunnel"
+                wixLocation.to("https://www.oneo.love/booking-calendar/shivas-tunnel");
+                break;
+            case "e3b7b40a-c831-409f-9302-430c1bebb548":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/unshackle"
+                wixLocation.to("https://www.oneo.love/booking-calendar/unshackle");
+                break;
+            case "e798dbd8-52eb-463f-9e54-99754d7f4821":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/self-reflective-mirror"
+                wixLocation.to("https://www.oneo.love/booking-calendar/self-reflective-mirror");
+                break;
+            default:
+                console.log('PP')
+                //$item('#btBook').link = "https://www.oneo.love/booking-temp"
+                wixLocation.to("https://www.oneo.love/booking-temp");
+                break;
+            }
+        });
+
+        if (repArray.length > 0) {
+            for (let i = 0; i < repArray.length; i++) {
+                if ((repArray[i].bookedEntity.slot.sessionId == itemData.slot.sessionId) && repArray[i].status == "CONFIRMED") {
+                    $item('#alreadyBook').show();
+                    $item('#btBook').hide();
+                    $item('#goToBooking').show();
+                    //$item('#btAdd').hide();
+                    break;
+                } else {
+                    $item('#alreadyBook').hide();
+                    if (courseAvailable.includes(itemData.slot.serviceId)) {
+                        $item('#btBook').label = "Book";
+                        $item('#btBook').enable();
+                        $item('#btBook').show();
+                        $item('#goToBooking').hide();
+                    } else {
+                        $item('#btBook').label = "Not available";
+                        $item('#btBook').disable();
+                        $item('#btBook').show();
+                        $item('#goToBooking').hide();
+                    }
+                }
+            }
+        } else {
+            if (courseAvailable.includes(itemData.slot.serviceId)) {
+                $item('#btBook').label = "Book";
+                $item('#btBook').enable();
+                $item('#btBook').show();
+                $item('#goToBooking').hide();
             } else {
-                $item('#bookNow').expand();
-                $item('#alreadyBook').hide();
-                $item('#alreadyBooked').collapse();
+                $item('#btBook').label = "Not available";
+                $item('#btBook').disable();
+                $item('#btBook').show();
+                $item('#goToBooking').hide();
             }
         }
-        //if (showBo) $item('#alreadyBook').hide(), $item('#bookNow').enable();
-
-        if (member) {
-            $w('#bookNow').show();
-            if (courseAvailable.includes(itemData.slot.serviceId)) {
-                $item('#bookNow').label = "Book now";
-                let remind = false
-                if (arrayRemind.length > 0) {
-                    for (let i = 0; i < arrayRemind.length; i++) {
-                        remind = await getRemingCourse(itemData.slot.serviceId, arrayRemind[i])
-                    }
-                    if (remind) $item('#bookNow').disable();
-                }
-                if (showBo) {
-                    $item('#alreadyBook').hide();
-                    if (remind == false) $item('#bookNow').enable();
-                }
-
-            } else {
-                $item('#bookNow').label = "Not available";
-                $item('#alreadyBook').hide();
-                $item('#bookNow').disable();
-            }
-        } else $w('#bookNow').hide();
 
         $item('#repSessionDate').text = startDate.toDateString();
         $item('#repSessionHour').text = hour;
@@ -130,23 +211,10 @@ async function init() {
                 break
             }
         }
-
-        $w('#alreadyBooked').onClick(() => { $w('#box').changeState('ownSessions'), $w('#BTownSessions').disable(), $w('#BTsessions').enable() })
-
-        $item('#bookNow').onClick(() => {
-            let date = new Date(itemData.slot.startDate)
-            if (date.getMonth() == newDate0.getMonth()) {
-                if (slot == "" || (slot !== itemData.slot.sessionId)) {
-                    slot = itemData.slot.sessionId
-                    $item('#bookNow').disable();
-                    createBook(itemData, member, services);
-                    $item('#bookNow').enable();
-                }
-            }
-        })
     })
+
     // ======================= Rep My Books
-    $w('#repMyBooks').onItemReady(($item, itemData, index) => {
+    $w('#repMyBooks').onItemReady(async ($item, itemData, index) => {
         //console.log(itemData)
         let startDate = new Date(itemData.startDate)
         let endDate = new Date(itemData.endDate)
@@ -171,35 +239,52 @@ async function init() {
             }
         })
 
+        let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId);
+        $item('#mbJoinNow').link = sessionInfo.calendarConference.guestUrl;
+
         $item('#mbJoinNow').onClick(async () => {
-            let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId)
-            wixLocation.to(sessionInfo.calendarConference.guestUrl)
+            if (!($item('#mbJoinNow').link)) {
+                let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId)
+                wixLocation.to(sessionInfo.calendarConference.guestUrl)
+            }
         })
+
     })
 
 }
 
 async function initialFunctions() {
     $w('#box').changeState('Loading')
-    await getCurrentMember()
+    try {
+        await getCurrentMember();
 
-    if (member) {
-        await getBookings_V2()
+        if (member) {
+            await getBookings_V2();
+        }
+
+        await getServices(true)
+        await updateSessionRep()
+
         $w('#BTownSessions').show();
-    } else $w('#BTownSessions').hide();
+        $w('#btMaster').show();
 
-    await getServices(true)
-    await updateSessionRep()
+        $w('#box').changeState('session');
+        $w('#BTsessions').disable();
+        $w('#BTownSessions').enable();
+    } catch (error) {
+        $w('#errorMessage').text = error;
+        $w('#lottieEmbed2').hide();
+        $w('#text298').collapse();
+        $w('#errorMessage').show();
+        $w('#errorButtons').expand();
+    }
 
-    $w('#box').changeState('session');
-    $w('#BTsessions').disable();
-    $w('#BTownSessions').enable();
 }
 // ========================================================================== GET SERVICES & BOOKINGS
 async function getServices(filterDate) {
     wixPaidPlans.getCurrentMemberOrders()
     await wixData.query("Bookings/Services").find().then(async (results) => {
-        console.log(results.items)
+        //(results.items)
         services = results.items;
         for (let i = 0; i < services.length; i++) {
             arrayS.push(services[i]._id)
@@ -221,8 +306,11 @@ async function getBookings_V2() {
         return a.startDate - b.startDate
     });
 
+    if (repArray.length > 0) $w('#messageOwnSessions').collapse();
+    else $w('#messageOwnSessions').expand();
+    //console.log("repArray", repArray)
     $w('#repMyBooks').data = repArray;
-    $w('#repMyBooks').onItemReady(($item, itemData, index) => {
+    await $w('#repMyBooks').onItemReady(async ($item, itemData, index) => {
         //console.log(itemData)
         let startDate = new Date(itemData.startDate)
         let endDate = new Date(itemData.endDate)
@@ -247,10 +335,16 @@ async function getBookings_V2() {
             }
         })
 
+        let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId);
+        $item('#mbJoinNow').link = sessionInfo.calendarConference.guestUrl;
+
         $item('#mbJoinNow').onClick(async () => {
-            let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId)
-            wixLocation.to(sessionInfo.calendarConference.guestUrl)
+            if (!($item('#mbJoinNow').link)) {
+                let sessionInfo = await getSession(itemData.bookedEntity.slot.sessionId)
+                wixLocation.to(sessionInfo.calendarConference.guestUrl)
+            }
         })
+
     })
 
 }
@@ -277,21 +371,29 @@ async function bookInfo(filterDate) {
                     endDate: newDate1
                 }
             }
-            //console.log(query)
-            let availability = await availabilityCalendar.queryAvailability(query);
-            //console.log("availability: ")
+            let availability = await availabilityCalendar.queryAvailability(query)
             //console.log(availability)
 
             for (let j = 0; j < availability.availabilityEntries.length; j++) {
                 let json = availability.availabilityEntries[j]
                 json.date = new Date(json.slot.startDate)
                 //json.serviceID = arrayS[i]
-                json._id = (j + arraySessions.length) + ""
+                json._id = json.slot.sessionId;
                 arraySessions.push(json)
             }
         }
+        //("Array", arraySessions)
 
-    } catch (error) { console.error(error) }
+    } catch (error) {
+        await wixData.insert('CatchError', { title: "Booking Page - bookInfo", error: error, info: filterDate })
+        errToWixData = {
+            user: member._id,
+            issue: error,
+            data: filterDate,
+            title: "Booking Page - bookInfo"
+        }
+        throw error(error);
+    }
 }
 
 // ========================================================================== REP AVAILABLES BOOKS
@@ -311,44 +413,85 @@ async function updateSessionRep() {
             if (DMinutes == 0) $item('#repSessionTimeSlots').text = DHours + " h | " + itemData.openSpots + " spots available"
             else $item('#repSessionTimeSlots').text = DHours + " h " + DMinutes + " min | " + itemData.openSpots + " spots available"
         }
-        let showBo = true
-        for (let i = 0; i < repArray.length; i++) {
-            if ((repArray[i].bookedEntity.slot.sessionId == itemData.slot.sessionId) && repArray[i].status == "CONFIRMED") {
-                $item('#alreadyBook').show();
-                $item('#bookNow').collapse();
-                $item('#alreadyBooked').expand();
-                showBo = false
+
+        $item('#btBook').onClick(() => {
+            switch (itemData.slot.serviceId) {
+            case "68c11126-b710-4259-b4cd-403a5e7c4081":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/coherence-healing";
+                wixLocation.to("https://www.oneo.love/booking-calendar/coherence-healing");
                 break;
+            case "c3d7eaf5-4be6-47bf-8dfc-9f7f971342aa":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/tesla-3-6-9-1"
+                wixLocation.to("https://www.oneo.love/booking-calendar/tesla-3-6-9-1");
+                break;
+            case "c0f437a0-2b59-4a92-b32b-302fdaa16ea9":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/silent-deeply-connected";
+                wixLocation.to("https://www.oneo.love/booking-calendar/silent-deeply-connected");
+                break;
+            case "7cb9074f-6348-4ee0-b744-65d7e8f62902":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/buddha-s-cave"
+                wixLocation.to("https://www.oneo.love/booking-calendar/buddha-s-cave");
+                break;
+            case "b511c0bc-901e-46d6-84cb-5017a6fb40d5":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/you-2-0"
+                wixLocation.to("https://www.oneo.love/booking-calendar/you-2-0");
+                break;
+            case "7c6f073c-5405-42ac-8e85-c436b134c41c":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/shivas-tunnel"
+                wixLocation.to("https://www.oneo.love/booking-calendar/shivas-tunnel");
+                break;
+            case "e3b7b40a-c831-409f-9302-430c1bebb548":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/unshackle"
+                wixLocation.to("https://www.oneo.love/booking-calendar/unshackle");
+                break;
+            case "e798dbd8-52eb-463f-9e54-99754d7f4821":
+                //$item('#btBook').link = "https://www.oneo.love/booking-calendar/self-reflective-mirror"
+                wixLocation.to("https://www.oneo.love/booking-calendar/self-reflective-mirror");
+                break;
+            default:
+                console.log('PP')
+                //$item('#btBook').link = "https://www.oneo.love/booking-temp"
+                wixLocation.to("https://www.oneo.love/booking-temp");
+                break;
+            }
+        });
+
+        if (repArray.length > 0) {
+            for (let i = 0; i < repArray.length; i++) {
+                if ((repArray[i].bookedEntity.slot.sessionId == itemData.slot.sessionId) && repArray[i].status == "CONFIRMED") {
+                    $item('#alreadyBook').show();
+                    $item('#btBook').hide();
+                    $item('#goToBooking').show();
+                    //$item('#btAdd').hide();
+                    break;
+                } else {
+                    $item('#alreadyBook').hide();
+                    if (courseAvailable.includes(itemData.slot.serviceId)) {
+                        $item('#btBook').label = "Book";
+                        $item('#btBook').enable();
+                        $item('#btBook').show();
+                        $item('#goToBooking').hide();
+                    } else {
+                        $item('#btBook').label = "Not available";
+                        $item('#btBook').disable();
+                        $item('#btBook').show();
+                        $item('#goToBooking').hide();
+                    }
+                }
+            }
+        } else {
+            if (courseAvailable.includes(itemData.slot.serviceId)) {
+                $item('#btBook').label = "Book";
+                $item('#btBook').enable();
+                $item('#btBook').show();
+                $item('#goToBooking').hide();
             } else {
-                $item('#bookNow').expand();
-                $item('#alreadyBook').hide();
-                $item('#alreadyBooked').collapse();
+                $item('#btBook').label = "Not available";
+                $item('#btBook').disable();
+                $item('#btBook').show();
+                $item('#goToBooking').hide();
             }
         }
-        //if (showBo) $item('#alreadyBook').hide(), $item('#bookNow').enable();
-
-        if (member) {
-            $w('#bookNow').show();
-            if (courseAvailable.includes(itemData.slot.serviceId)) {
-                $item('#bookNow').label = "Book now";
-                let remind = false
-                if (arrayRemind.length > 0) {
-                    for (let i = 0; i < arrayRemind.length; i++) {
-                        remind = await getRemingCourse(itemData.slot.serviceId, arrayRemind[i])
-                    }
-                    if (remind) $item('#bookNow').disable();
-                }
-                if (showBo) {
-                    $item('#alreadyBook').hide();
-                    if (remind == false) $item('#bookNow').enable();
-                }
-
-            } else {
-                $item('#bookNow').label = "Not available";
-                $item('#alreadyBook').hide();
-                $item('#bookNow').disable();
-            }
-        } else $w('#bookNow').hide();
 
         $item('#repSessionDate').text = startDate.toDateString();
         $item('#repSessionHour').text = hour;
@@ -358,115 +501,118 @@ async function updateSessionRep() {
                 break
             }
         }
-
-        $w('#alreadyBooked').onClick(() => { $w('#box').changeState('ownSessions'), $w('#BTownSessions').disable(), $w('#BTsessions').enable() })
-
-        $item('#bookNow').onClick(() => {
-            let date = new Date(itemData.slot.startDate)
-            if (date.getMonth() == newDate0.getMonth()) {
-                if (slot == "" || (slot !== itemData.slot.sessionId)) {
-                    slot = itemData.slot.sessionId
-                    $item('#bookNow').disable();
-                    createBook(itemData, member, services);
-                    $item('#bookNow').enable();
-                }
-            }
-        })
     })
-}
-
-async function createBook(itemData, member, services) {
-    $w('#group5').scrollTo();
-    $w('#box').changeState('Loading')
-    //console.log(itemData, member, services)
-
-    let result = await bookSlot_Back(itemData, member, services);
-    console.log(itemData.slot.serviceId, arrayPlans)
-    let planData = await getPlanByBooking(itemData.slot.serviceId, arrayPlans)
-    console.log("planData", planData)
-    await getMembership(member._id, planData, true, 'L')
-
-    if (member) await getBookings_V2()
-    await getCurrentMember();
-    await bookInfo(false);
-    await updateSessionRep();
-
-    $w('#box').changeState('session');
-    $w('#BTsessions').disable();
-    $w('#BTownSessions').enable();
 }
 
 // ========================================================================== CANCEL BOOK
 async function cancelBooking(book) {
     $w('#group5').scrollTo();
     $w('#box').changeState('Loading')
+
+    try {
+        await cancelBooking_V2(book)
+        await getBookings_V2();
+
+        await getCurrentMember();
+        await bookInfo(false);
+        await updateSessionRep();
+
+        $w('#box').changeState('ownSessions');
+        $w('#BTsessions').enable();
+        $w('#BTownSessions').disable();
+    } catch (error) {
+        $w('#errorMessage').text = error;
+        $w('#lottieEmbed2').hide();
+        $w('#text298').collapse();
+        $w('#errorMessage').show();
+        $w('#errorButtons').expand();
+    }
     //console.log(book)
-
-    let result = await cancelBooking_V2(book)
-    console.log(book.bookedEntity.slot.serviceId, arrayPlans)
-    let planData = await getPlanByBooking(book.bookedEntity.slot.serviceId, arrayPlans)
-    console.log("planData", planData)
-    await getMembership(member._id, planData, true, 'M')
-
-    if (member) await getBookings_V2()
-    await getCurrentMember();
-    await bookInfo(false);
-    await updateSessionRep();
-
-    $w('#box').changeState('ownSessions');
-    $w('#BTsessions').enable();
-    $w('#BTownSessions').disable();
 }
 
 // ========================================================================== GET MEMBER
 async function getCurrentMember() {
     let options = { fieldsets: ['FULL'] }
     await currentMember.getMember(options).then(async (memberInfo) => {
-        member = memberInfo
-        //console.log(member)
+        member = memberInfo;
+
+        if (member == undefined) {
+            $w('#group5').collapse();
+            $w('#box1').collapse();
+        } else {
+            $w('#group5').expand();
+            $w('#box1').expand();
+        }
+
     })
 
     if (member) {
         contactID = await getContact(member.loginEmail, false)
+        // Get plans already booked and stay active
         await orders.listCurrentMemberOrders()
             .then(async (ordersList) => {
                 let planSearch = []
                 for (let i = 0; i < ordersList.length; i++) {
                     if (ordersList[i].status == "ACTIVE") plans.push(ordersList[i]), planSearch.push(ordersList[i].planId)
                 }
-                console.log("plans", plans)
-                await repPlans(plans)
-                console.log("planSearch", planSearch)
+                /*
+                if (planSearch.includes('70fa5386-2d93-4646-b131-6e8774e60514')) $w('#btCH14').expand();
+                else $w('#btCH14').collapse();
+
+                if (planSearch.includes('6d87f421-244f-4cfb-9021-23fcc596c70e')) $w('#btCH24').expand();
+                else $w('#btCH24').collapse();
+                */
                 courseAvailable = await getPlans(planSearch)
-                console.log("courseAvailable", courseAvailable)
-            }).catch((error) => console.error(error));
+                console.log("plans", plans)
+                //console.log("courseAvailable", courseAvailable)
+                await repPlans(plans)
+
+            }).catch(async (error) => {
+                await wixData.insert('CatchError', { title: "Booking Page - getCurrentMember", error: error, info: plans })
+                console.error(error)
+                errToWixData = {
+                    user: member._id,
+                    issue: error,
+                    data: plans,
+                    title: "Booking Page - bookInfo"
+                }
+                throw error(error);
+            })
     }
 }
 
-async function repPlans(plans) {
-    arrayPlans = [];
-    for (let i = 0; i < plans.length; i++) {
-        //console.log(i)
-        let json = plans[i]
-        //console.log('json0',json)
-        let info = await getMembership(member._id, plans[i].planId, false)
-        //console.log("info", info)
-        json.sessions = info.sessions;
-        json.remindSessions = info.remindSessions;
-
-        if (info.remindSessions == 0) arrayRemind.push(plans[i].planId)
-        //console.log('json1', json)
-        arrayPlans.push(json)
-    }
-    console.log(arrayPlans)
-    console.log("arrayRemind", arrayRemind)
+async function repPlans(arrayPlans) {
+    if (arrayPlans.length == 0) $w('#selectM').expand();
+    else $w('#selectM').collapse();
 
     $w('#repPlans').data = arrayPlans
     $w('#repPlans').onItemReady(($item, itemData, index) => {
+        /*
+        if (variable) {
+            if (itemData.plan == "6d87f421-244f-4cfb-9021-23fcc596c70e") $w('#button18').show(), variable = false
+            else $w('#button18').show() //Bryan por ahora cambien que siempre se muestre el boton de audios
+        }
+        */
+
         $item('#planName').text = itemData.planName
-        $item('#planRemaining').html = '<p class="p1 wixui-rich-text__text" style="font-size:15px;"><span class="color_12 wixui-rich-text__text"><span style="font-size:15px;" class="wixui-rich-text__text">Sessions remaining this month:</span></span></p><p class="p1 wixui-rich-text__text" style="font-size:15px;"><span style="font-weight:bold;" class="wixui-rich-text__text"><span class="color_23 wixui-rich-text__text"><span style="font-size:15px;" class="wixui-rich-text__text">' + itemData.remindSessions + "/" + itemData.sessions + '&nbsp;</span></span></span></p>'
+
+        let dateS = new Date(itemData.startDate)
+        $item('#startDate').text = "Start date: " + dateS.toDateString();
+        let dateL = new Date(itemData.currentCycle.startedDate)
+        $item('#lastPayment').text = "Last Payment: " + dateL.toDateString();
+        if (itemData.cancellation) {
+            let dateN = new Date(itemData.currentCycle.endedDate)
+            $item('#nextPayment').text = "End Membership: " + dateN.toDateString();
+            $item('#planBTCancel').collapse();
+        } else {
+            let dateN = new Date(itemData.currentCycle.endedDate)
+            $item('#nextPayment').text = "Next Payment: " + dateN.toDateString();
+            $item('#planBTCancel').expand();
+        }
+
         $item('#planBTCancel').onClick(() => {
-            console.log(itemData)
+            itemData.privateId = member;
+            wixWindow.openLightbox("CancelSubscription", itemData)
         })
     })
     $w('#repPlans').expand();

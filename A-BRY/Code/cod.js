@@ -71,4 +71,4 @@ export function email(User) {
 let options = {
     "suppressAuth": true,
     "suppressHooks": true
-};
+}; 

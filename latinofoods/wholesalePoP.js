@@ -23,13 +23,21 @@ function init() {
     //$w('#input9').onInput(() => { if ($w('#input9').value == 'test yourweb') testWeight() })
 
     let formFactor = wixWindow.formFactor; // "Mobile"
-    if (formFactor !== "Desktop") {
+    if (formFactor == "Mobile") {
         $w('#mobileButton2').expand();
         $w('#mobileButton2').onClick(() => {
             if ($w('#filter').isVisible) $w('#filter').collapse()
             else $w('#filter').expand()
         });
+    } else {
+        //Check weight
+        $w('#search').onInput(() => {
+            if ($w('#search').value == 'Bryan') $w('#check').expand();
+            else $w('#check').collapse();
+        })
+        $w('#checkButton').onClick(() => checkSystem())
     }
+    //console.log("0.0")
     //MultiStateBox
     $w('#BOrder').onClick(() => Buttons(1));
     $w('#goToCheckout').onClick(() => Buttons(1));
@@ -37,7 +45,7 @@ function init() {
     $w('#goBack').onClick(() => Buttons(2));
     $w('#BProducts').onClick(() => Buttons(2));
     $w('#cartPage').onClick(() => Buttons(3));
-
+    //console.log("0.1")
     //Events
     $w('#Add').onClick((event) => Add(event));
     $w('#quantity').onInput((Event) => quantity(Event));
@@ -46,12 +54,6 @@ function init() {
     $w('#searchProduct').onClick(() => filterLatino());
     $w('#filter').onChange(() => filterLatino());
     $w('#range').onChange(() => filterLatino());
-    //Check weight
-    $w('#search').onInput(() => {
-        if ($w('#search').value == 'Bryan') $w('#check').expand();
-        else $w('#check').collapse();
-    })
-    $w('#checkButton').onClick(() => checkSystem())
 
     $w('#search').onKeyPress((event) => { if (event.key == 'Enter') filterLatino() })
 
@@ -60,7 +62,7 @@ function init() {
     $w('#checkbox1').onChange(() => zonas());
 
     $w('#sort').onChange(() => sortAsDes())
-
+    //console.log("0.2")
     $w("#repeater1").onItemReady(async ($item, itemData, index) => {
         //IMPORTANT CONSOLE FOR TO SEE ALL THE PRODUCTS IN THE REPEATER
         //console.log(itemData)
@@ -78,7 +80,7 @@ function init() {
         if (itemData.sku) {
             $item('#itemSku').text = itemData.sku
             $item('#dropVariant').collapse();
-            wixData.query("WholesalesProducts")
+            await wixData.query("WholesalesProducts")
                 .eq('sku', itemData.sku)
                 .find()
                 .then((results) => {
@@ -117,7 +119,9 @@ function init() {
                 });
         } else {
             let variant = await getVariant(itemData._id);
-            //console.log(variant)
+            console.log("variant")
+            console.log(variant)
+            console.log(itemData)
             let x = []
 
             if (itemData.productOptions.Weight) {
@@ -141,11 +145,11 @@ function init() {
         }
 
         // DROP VARIANT
-        $item('#dropVariant').onChange((event) => {
+        $item('#dropVariant').onChange(async (event) => {
             //let $item = $w.at(event.context);
             $item('#itemSku').text = $item('#dropVariant').value
-            //console.log($item('#dropVariant').value)
-            wixData.query("WholesalesProducts")
+            console.log($item('#dropVariant').value)
+            await wixData.query("WholesalesProducts")
                 .eq('sku', $item('#dropVariant').value)
                 .find()
                 .then((results) => {
@@ -199,10 +203,12 @@ function init() {
 // ===================================================== INFO USERS =====================================================
 function user() {
     let user = wixUsers.currentUser;
+    console.log("here")
     user.getEmail()
-        .then((email) => {
+        .then(async (email) => {
             let userEmail = email; // "user@something.com"
-            wixData.query("contact112")
+            console.log(userEmail)
+            await wixData.query("contact112")
                 .eq('email', userEmail)
                 .find()
                 .then((results) => {
@@ -241,8 +247,8 @@ function device() {
 }
 
 // ===================================================== FILTER =====================================================
-function filterProducts() {
-    wixData.query("Stores/Collections")
+async function filterProducts() {
+    await wixData.query("Stores/Collections")
         .find()
         .then((results) => {
             if (results.items.length > 0) {
@@ -260,7 +266,7 @@ function filterProducts() {
 }
 
 async function filterLatino() {
-    let filter = wixData.filter();
+    let filter = await wixData.filter();
     //Search filter
     if ($w('#search').value.length > 0) filter = filter.and(wixData.filter().contains('name', $w('#search').value).and(wixData.filter().eq("collections", ["7e56d55b-bfda-7c32-000b-37c175dcca89"])));
 
@@ -688,6 +694,9 @@ function remove(itemData) {
 function subtotal(arrayElements) {
     subtotalText = 0;
     for (let i = 0; i < arrayElements.length; i++) {
+        if (arrayElements[i].Quantity == null || arrayElements[i].Quantity == undefined || arrayElements[i].Quantity == "NaN") {
+            arrayElements[i].Quantity = 1
+        }
         subtotalText += arrayElements[i].Quantity * arrayElements[i].Price;
         //console.log(i, arrayElements[i].Quantity, arrayElements[i].Price, subtotalText)
     }
@@ -732,7 +741,7 @@ function zonas() {
     }
 }
 
-function testWeight() {
+async function testWeight() {
     let jsonItems = [];
     let badProducts = []
 
@@ -741,17 +750,17 @@ function testWeight() {
         if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
             console.log(1)
 
-            wixData.query("WholesalesProducts")
+            await wixData.query("WholesalesProducts")
                 .eq('sku', arrayElements[i].sku)
                 .find()
-                .then((results) => {
+                .then(async (results) => {
                     if (results.items.length > 0) {
                         console.log(results.items[0])
                         if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
                             arrayElements[i].Price = parseFloat(results.items[0].price)
                             arrayElements[i].weight = parseFloat(results.items[0].weight)
                         } else {
-                            wixData.query("Stores/Products")
+                            await wixData.query("Stores/Products")
                                 .eq('_id', arrayElements[i]._id)
                                 .find()
                                 .then((results) => {
@@ -767,7 +776,7 @@ function testWeight() {
                                 });
                         }
                     } else {
-                        wixData.query("Stores/Products")
+                        await wixData.query("Stores/Products")
                             .eq('_id', arrayElements[i]._id)
                             .find()
                             .then((results) => {
@@ -826,20 +835,23 @@ async function createOrderLF() {
         let jsonItems = [];
         let badProducts = []
 
+        let weightV = false
+        let productsBadWeight = "Products with bad weight = "
+
         for (let i = 0; i < arrayElements.length; i++) {
             //console.log(arrayElements[i])
-            if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
-                wixData.query("WholesalesProducts")
+            if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number') || arrayElements[i].Price == null) {
+                await wixData.query("WholesalesProducts")
                     .eq('sku', arrayElements[i].sku)
                     .find()
-                    .then((results) => {
+                    .then(async (results) => {
                         if (results.items.length > 0) {
                             console.log(results.items[0])
                             if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
                                 arrayElements[i].Price = parseFloat(results.items[0].price)
                                 arrayElements[i].weight = parseFloat(results.items[0].weight)
                             } else {
-                                wixData.query("Stores/Products")
+                                await wixData.query("Stores/Products")
                                     .eq('_id', arrayElements[i]._id)
                                     .find()
                                     .then((results) => {
@@ -855,7 +867,7 @@ async function createOrderLF() {
                                     });
                             }
                         } else {
-                            wixData.query("Stores/Products")
+                            await wixData.query("Stores/Products")
                                 .eq('_id', arrayElements[i]._id)
                                 .find()
                                 .then((results) => {
@@ -874,6 +886,16 @@ async function createOrderLF() {
                     .catch((err) => {
                         console.log(err);
                     });
+            }
+
+            if (arrayElements[i].Quantity == null || arrayElements[i].Quantity == undefined || arrayElements[i].Quantity == "NaN") {
+                arrayElements[i].Quantity = 1
+            }
+
+            if (arrayElements[i].weight == null || arrayElements[i].weight == undefined || arrayElements[i].weight == "NaN") {
+                if (!weightV) weightV = true
+                productsBadWeight += arrayElements[i].Title + " - "
+                arrayElements[i].weight = 1
             }
 
             let json = {
@@ -895,7 +917,7 @@ async function createOrderLF() {
                 json.variantId = arrayElements[i].variantId
                 json.options = arrayElements[i].options
             }
-
+            console.log(json)
             jsonItems.push(json)
         }
 
@@ -909,6 +931,9 @@ async function createOrderLF() {
         for (let i = 0; i < badProducts.length; i++) {
             message += badProducts[i] + " to be verifed\n"
         }
+
+        // Variable si la dirreccion esta mala
+        let addressVariable = false
 
         if ($w('#checkbox1').checked == true) {
 
@@ -946,10 +971,60 @@ async function createOrderLF() {
             }
 
         } else {
+            if ($w('#checkOutComplete').text == "Address") {
+                addressVariable = true;
+                Info = {
+                    "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
+                    "shipmentDetails": {
+                        "address": {
+                            "formatted": "3 Porters Avenue, Eden Terrace, Auckland, New Zealand",
+                            "city": "Auckland",
+                            "country": "NZ",
+                            "addressLine": "3 Porters Avenue",
+                            "postalCode": "1024",
+                        },
+                        "lastName": $w('#input12').value,
+                        "firstName": $w('#input11').value,
+                        "email": $w('#input9').value,
+                        "phone": $w('#input10').value,
+                        "company": $w('#input13').value,
+                    }
+                }
 
-            Info = {
-                "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
-                "shipmentDetails": {
+                BillingInfo = {
+                    "address": {
+                        "formatted": "3 Porters Avenue, Eden Terrace, Auckland, New Zealand",
+                        "city": "Auckland",
+                        "country": "NZ",
+                        "addressLine": "3 Porters Avenue",
+                        "postalCode": "1024",
+                    },
+                    "lastName": $w('#input12').value,
+                    "firstName": $w('#input11').value,
+                    "email": $w('#input9').value,
+                    "phone": $w('#input10').value,
+                    "company": $w('#input13').value,
+                }
+            } else {
+                Info = {
+                    "deliveryOption": "SHIPPING TO YOUR STORE - TO BE CONFIRMED\nFee calculated after you place the order",
+                    "shipmentDetails": {
+                        "address": {
+                            "formatted": $w('#checkOutComplete').text,
+                            "city": $w('#checkoutCity').text,
+                            "country": $w('#checkOutCountry').text,
+                            "addressLine": $w('#checkOutAddress').text,
+                            "postalCode": $w('#checkOutPostCode').text,
+                        },
+                        "lastName": $w('#input12').value,
+                        "firstName": $w('#input11').value,
+                        "email": $w('#input9').value,
+                        "phone": $w('#input10').value,
+                        "company": $w('#input13').value,
+                    }
+                }
+
+                BillingInfo = {
                     "address": {
                         "formatted": $w('#checkOutComplete').text,
                         "city": $w('#checkoutCity').text,
@@ -965,22 +1040,12 @@ async function createOrderLF() {
                 }
             }
 
-            BillingInfo = {
-                "address": {
-                    "formatted": $w('#checkOutComplete').text,
-                    "city": $w('#checkoutCity').text,
-                    "country": $w('#checkOutCountry').text,
-                    "addressLine": $w('#checkOutAddress').text,
-                    "postalCode": $w('#checkOutPostCode').text,
-                },
-                "lastName": $w('#input12').value,
-                "firstName": $w('#input11').value,
-                "email": $w('#input9').value,
-                "phone": $w('#input10').value,
-                "company": $w('#input13').value,
-            }
-
         }
+
+        let buyerNote = "\nWHOLESALE\nDelivery Intructions\n" + $w('#textBox2').value + "\n\nBusinnes Hours\n" + $w('#checkOutHours').value + message;
+        if (addressVariable) buyerNote += "\n\n Problem with the address, confirm address in collection"
+
+        if (weightV) buyerNote += "\n" + productsBadWeight
 
         let minimumOrder = {
             "lineItems": jsonItems,
@@ -992,7 +1057,7 @@ async function createOrderLF() {
                 "type": "WEB"
             },
             "paymentStatus": "NOT_PAID",
-            "buyerNote": "\nWHOLESALE\nDelivery Intructions\n" + $w('#textBox2').value + "\n\nBusinnes Hours\n" + $w('#checkOutHours').value + message,
+            "buyerNote": buyerNote,
             "shippingInfo": Info,
             "billingInfo": BillingInfo
         }
@@ -1005,17 +1070,17 @@ async function createOrderLF() {
                 //const newOrderId = order._id;
                 //const buyerEmail = order.buyerInfo.email;
                 //console.log(order);
-                setTimeout(() => {
+                setTimeout(async () => {
                     session.removeItem("Order");
-                    wixData.query("contact11")
+                    await wixData.query("contact11")
                         .eq('email', order.billingInfo.email)
                         .descending('_createdDate')
                         .find()
-                        .then((results) => {
+                        .then(async (results) => {
                             if (results.items.length > 0) {
                                 results.items[0].order = order.number
                                 results.items[0].weight = order.totals.weight
-                                wixData.update("contact11", results.items[0])
+                                await wixData.update("contact11", results.items[0])
                                     .then((results) => {
                                         //console.log(results)
                                         wixLocation.to('/thank-you-wholesales');
@@ -1034,7 +1099,7 @@ async function createOrderLF() {
 
                 //console.log(newOrderId, buyerEmail)
             })
-            .catch((error) => {
+            .catch(async (error) => {
                 // Order not created
                 let json = {
                     "title": "Wholesales",
@@ -1043,7 +1108,7 @@ async function createOrderLF() {
                     "error": error
                 };
 
-                wixData.insert("CatchErrorsLF", json)
+                await wixData.insert("CatchErrorsLF", json)
                     .then((results) => {
                         let item = results; //see item below
                     })
@@ -1097,14 +1162,14 @@ async function checkSystem() {
         $w('#checkMessage').text += "\n\n" + arrayElements[i]['Title'] + "\n" + arrayElements[i].sku + "   -   " + arrayElements[i].weight + "\n"
 
         if (!(typeof arrayElements[i].Price === 'number') || !(typeof arrayElements[i].weight === 'number')) {
-            wixData.query("WholesalesProducts").eq('sku', arrayElements[i].sku).find().then((results) => {
+            await wixData.query("WholesalesProducts").eq('sku', arrayElements[i].sku).find().then(async (results) => {
                     if (results.items.length > 0) {
                         console.log('Collection info')
                         if (results.items[0].price !== null && results.items[0].price !== undefined && results.items[0].weight !== null && results.items[0].weight !== undefined) {
                             arrayElements[i].Price = parseFloat(results.items[0].price)
                             arrayElements[i].weight = parseFloat(results.items[0].weight)
                         } else {
-                            wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
+                            await wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
                                     console.log("Store price or weight")
                                     if (results.items.length > 0) {
                                         arrayElements[i].Price = results.items[0].price
@@ -1117,7 +1182,7 @@ async function checkSystem() {
                                 });
                         }
                     } else {
-                        wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
+                        await wixData.query("Stores/Products").eq('_id', arrayElements[i]._id).find().then((results) => {
                                 console.log('Store because its no in the collection')
                                 if (results.items.length > 0) {
                                     arrayElements[i].Price = results.items[0].price
@@ -1133,7 +1198,7 @@ async function checkSystem() {
                 .catch((err) => {
                     console.log(err);
                 });
-        }else console.log('Price and Weight ok')
+        } else console.log('Price and Weight ok')
 
         let json = {
             "productId": arrayElements[i].productId,

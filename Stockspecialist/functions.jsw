@@ -1,0 +1,91 @@
+import { checkout } from 'wix-pricing-plans-backend';
+import { authentication } from 'wix-members-backend';
+import wixData from 'wix-data';
+var options = { "suppressAuth": true, "suppressHooks": true }
+
+// ========================================= Sign Up =========================================
+export async function signUp(email, pass) {
+    let item = await getEmailFromCollection(email);
+    let optionsM;
+    if (item !== false) {
+        optionsM = {
+            "contactInfo": {},
+            "privacyStatus": "PUBLIC"
+        }
+        if (item.firstName) optionsM.contactInfo.firstName = item.firstName;
+        if (item.lastName) optionsM.contactInfo.lastName = item.lastName;
+        if (item.phone) optionsM.contactInfo.phones = [item.phone];
+        //Register
+        return await authentication.register(email, pass, optionsM).then(async (registrationResult) => {
+            return { type: 'success N', message: 'User was registered successfully', sessionToken: registrationResult.sessionToken, id: registrationResult.member._id }
+        }).catch(err => { return { type: 'registration error', message: err.message } })
+    } else return { type: 'New User' }
+}
+
+export async function getEmailFromCollection(email) {
+    return await wixData.query('Members').contains('email1', email).and((wixData.query('Members').isEmpty('plan').or(wixData.query('Members').eq('plan', false)))).find(options).then(async (results) => {
+        if (results.items.length > 0) return results.items[0];
+        else return false
+    }).catch((err) => console.log(err))
+}
+
+// ========================================= Asssign Pricing plan Option 1
+export async function assignPlan(email) {
+    let item = await getEmailFromCollection(email);
+    if (item !== false) {
+        item.plan = true;
+        await wixData.update("Members", item, options)
+            .then((results) => console.log("Update Plan", results))
+            .catch((err) => console.log("Plan Error ok", err));
+        return await createOnlineOrderBackFree();
+    }
+}
+
+export async function createOnlineOrderBackFree() {
+    try {
+        let gold = "6ccc3121-fcf6-421b-9ba5-488821400ff9";
+        const order = await checkout.createOnlineOrder(gold);
+        return order;
+    } catch (error) { console.error(error) }
+}
+
+// ========================================= Asssign Pricing plan Option 2
+/*
+export async function getEmailFromCollectionOp2(email, action) {
+    return await wixData.query('Members').eq('email1', email).and(wixData.query('Members').isEmpty('plan')).find(options).then(async (results) => {
+        if (results.items.length > 0) {
+            let item = results.items[0];
+            if (action) {
+                // Create order and apply discount
+                let order = await createOnlineOrderBack();
+                let discount = await applyCouponBack(order._id);
+                //console.log(order, discount)
+                return discount.wixPayOrderId;
+            } else {
+                item.plan = true;
+                await wixData.update("Members", item, options)
+                    .then((results) => console.log(results))
+                    .catch((err) => console.log("Plan ok", err));
+            }
+        } else return false
+    }).catch((err) => console.log(err))
+}
+
+export async function createOnlineOrderBack() {
+    try {
+        let gold = "39917e58-6634-4a63-9e43-d19ab46510e7";
+        const order = await checkout.createOnlineOrder(gold);
+        return order;
+    } catch (error) { console.error(error) }
+}
+
+export async function applyCouponBack(orderId) {
+    try {
+        console.log(orderId)
+        const discountedOrder = await checkout.applyCoupon(orderId, "newUsers");
+        return discountedOrder;
+    } catch (error) {
+        console.error(error);
+    }
+}
+*/

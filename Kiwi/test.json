@@ -1,0 +1,104 @@
+{
+    "trigger": "BOOKING_AUTO_CONFIRMED",
+    "booking": {
+        "_id": "0c028454-5cfb-410f-b3b1-37c946b636a2",
+        "bookedResources": [{
+            "_id": "f09bbbf0-5ba6-478e-8ccf-a800adad4f9a",
+            "name": "Based By The Lake"
+        }],
+        "status": "CONFIRMED",
+        "_createdDate": "2023-07-13T23:37:09.795Z",
+        "bookingSource": {
+            "platform": "WEB",
+            "actor": "CUSTOMER"
+        },
+        "revision": "4",
+        "doubleBooked": false,
+        "totalParticipants": 1,
+        "bookedEntity": {
+            "serviceId": "c828e9b1-ce1f-478a-b34a-476d657181f6",
+            "scheduleId": "7d71d3db-d0b2-4647-8638-1203a3ce0504",
+            "singleSession": {
+                "sessionId": "193ZPR9ppP9emJUCLevcLf6orynNEIDt5nc0520xjGQILnPPaF5s62yK3BWz7ExgIRM1IWAt9Tka0kdfuoI2HiSddZ7WoD7sPdUtPVN0GjDB1S32gQ7fbMIfwnYw2rNZpzH44r5u8i1RPucZmRLHpQ6Hya5JY2fI0jtSYNRzGKqAZYeFTYJozBxGymckRa0qgyERMWFy6oXWhOgXnr9OUPiDWultgjv6TWut2teTbrSmFNFN7Gu3iOtzDMiKPPYHunUPXIKH3viDbw6jVQO0LQBrgUBmqlWKFPFo1gJWPQwYyEo9PpcIb84JPq82CHWA4QGo6tsKUd0gk1",
+                "start": "2023-07-18T22:00:00.000Z",
+                "end": "2023-07-18T23:00:00.000Z"
+            },
+            "title": "Test Auckland",
+            "rate": {
+                "labeledPriceOptions": {
+                    "general": {
+                        "amount": "0.5",
+                        "currency": "NZD",
+                        "downPayAmount": "0"
+                    }
+                }
+            },
+            "tags": [
+                "GROUP"
+            ],
+            "location": {
+                "address": "Auckland, New Zealand",
+                "businessLocation": {
+                    "_id": "f84d3c73-8f5a-435b-b008-cdec466d6ba8",
+                    "name": "Auckland",
+                    "timeZone": "Pacific/Auckland",
+                    "email": "travel@kiwiex.co.nz",
+                    "address": {
+                        "country": "NZ",
+                        "city": "Auckland",
+                        "formattedAddress": "Auckland, New Zealand",
+                        "geocode": {
+                            "latitude": -36.85088270000001,
+                            "longitude": 174.7644881
+                        }
+                    },
+                    "revision": "1"
+                },
+                "customAddress": {
+                    "formatted": "Auckland, New Zealand"
+                },
+                "locationType": "OWNER_BUSINESS"
+            }
+        },
+        "paymentDetails": {
+            "_id": "0c028454-5cfb-410f-b3b1-37c946b636a2",
+            "balance": {
+                "finalPrice": {
+                    "amount": "0.50",
+                    "currency": "NZD",
+                    "downPayAmount": "0.0"
+                },
+                "amountReceived": "0.5"
+            },
+            "state": "COMPLETE",
+            "wixPayMultipleDetails": [{
+                "txId": "e3e1e8db-abaa-4f9a-b65d-08df4f33bed4",
+                "orderId": "a10c1407-5881-4b50-87f5-f1230f794d38",
+                "orderAmount": "0.5",
+                "orderStatus": "COMPLETE",
+                "orderApprovalTime": "2023-07-14T19:48:02.046Z",
+                "paymentVendorName": "Stripe"
+            }]
+        },
+        "formInfo": {
+            "paymentSelection": [{
+                "rateLabel": "general",
+                "numberOfParticipants": 1
+            }],
+            "additionalFields": [{
+                "_id": "67f13252-9b53-48c2-8f44-7ed62a044255",
+                "value": "true",
+                "label": "Please note this booking can only be used as your first night stay and must be travelling on the bus the same day you check in. Any additional nights you require can be booked directly with the accommodation supplier when you arrive. Subject to availability. \n\nBy checking this box you understand this condition. ",
+                "valueType": "CHECK_BOX"
+            }],
+            "contactDetails": {
+                "contactId": "1d047899-c01d-4e8e-ab0f-548215c630dd",
+                "firstName": "Yourweb",
+                "lastName": "Team",
+                "email": "yourweb.team22@gmail.com",
+                "phone": "3176769102",
+                "timeZone": "Pacific/Auckland"
+            }
+        }
+    }
+}

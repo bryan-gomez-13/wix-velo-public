@@ -1,0 +1,15 @@
+import wixData from 'wix-data';
+
+export async function getReference(member) {
+    return await wixData.query('Members').eq('privateId', member).find().then(async (results) => {
+        if (results.items.length > 0) {
+            return await wixData.queryReferenced("Members", results.items[0], "services")
+                .then((results) => {
+                    if (results.items.length > 0) {
+                        return results.items
+                    }
+                });
+        }
+    })
+
+}

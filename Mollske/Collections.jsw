@@ -1,0 +1,30 @@
+import wixData from 'wix-data';
+var options = { "suppressAuth": true, "suppressHooks": true };
+
+export async function getCollections(roles) {
+    let collections = [];
+    for (let i = 0; i < roles.length; i++) {
+        // Get Id of the role to get the collections with reference
+        await wixData.query('Admin').eq('roleId', roles[i]).find(options).then(async (result) => {
+            if (result.items.length > 0) {
+                // Get references to put in an array for filter the store dataset
+                console.log("item", result.items)
+                await wixData.queryReferenced("Admin", result.items[0]._id, "categories", options).then((references) => {
+                    if (references._items.length > 0) {
+                        console.log("reference", references._items)
+                        for (let j = 0; j < references._items.length; j++) {
+                            let json = {
+                                _id: references._items[j]._id,
+                                name: references.items[j].name,
+                                imageCollection: result.items[0].image,
+                                imageCategory: references.items[j].mainMedia,
+                            };
+                            collections.push(json)
+                        }
+                    }
+                }).catch((err) => { console.log(err) });
+            }
+        }).catch((err) => console.log(err))
+    }
+    return collections;
+}

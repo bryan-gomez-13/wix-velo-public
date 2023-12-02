@@ -49,7 +49,7 @@ $w.onReady(async function () {
 	await putWeightOrders();
 });
 
-export function putWeightOrders(){
+export async function putWeightOrders(){
 	// Write your JavaScript here
 	let options = {
 	"suppressAuth": true

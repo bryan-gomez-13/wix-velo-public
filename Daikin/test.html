@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tu página</title>
+  <script>
+    function startAR() {
+        const embed = document.getElementById("embed");
+
+        if (embed) {
+            // Verificación rápida de disponibilidad de AR
+            if (PlattarARAdapter.Util.canAugment()) {
+                // Intenta iniciar la experiencia de AR si es posible
+                embed.startAR().then(() => {
+                    // AR se lanzó correctamente, puedes agregar lógica adicional si es necesario
+                }).catch((err) => {
+                    // AR no es posible, se muestra el código QR
+                    embed.startQRCode();
+                });
+            }
+            else {
+                embed.startQRCode();
+            }
+        }
+    }
+
+    function startViewer() {
+        const embed = document.getElementById("embed");
+
+        if (embed) {
+            embed.startViewer().then(() => {
+                // El visor se lanzó correctamente, puedes agregar lógica adicional si es necesario
+            }).catch((err) => {
+                // El visor no es posible, se puede agregar lógica de error aquí
+            });
+        }
+    }
+  </script>
+</head>
+<body>
+  <section class="plattar-test">
+    <div class="wrapper wrapper--medium margin-top-5x margin-bottom-5x">
+        <div class="row">
+            <div class="col-md-6">
+                <plattar-embed id="embed" product-id="f88e1920-e0af-11ec-8cf9-a9e49bb798b8" width="512px" height="512px" qr-type="ar"></plattar-embed>
+                <div class="align-center">
+                    <a class="button button--primary inverted btn-view-home margin-right-2x--md width-17x" id="buttonViewer" onclick="startViewer();" href="#">3D View</a>
+                    <a class="button button--primary inverted btn-view-home margin-right-2x--md width-17x" id="buttonAR" onclick="startAR();" href="#">View at Home</a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Necessitatibus error veniam amet aperiam, quibusdam corrupti rem iste odit similique, vero quasi illum atque officiis sapiente voluptas exercitationem nesciunt voluptates? Animi?</p>
+            </div>
+        </div>
+    </div>
+  </section>
+</body>
+</html>

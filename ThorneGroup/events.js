@@ -50,6 +50,7 @@ export async function wixCrm_onContactCreated(event) {
 
 // WIX FORM - START YOUR JOURNEY HERE - Send email with magazine
 export function wixCrm_onFormSubmit(event) {
+    
     console.log(event);
     //console.log(event.submissionData[4].fieldValue);
     let x = 0;

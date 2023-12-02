@@ -1,0 +1,49 @@
+import { contacts, triggeredEmails } from 'wix-crm-backend';
+
+export async function email(variables, centres, emailId) {
+    //console.log("Email", variables)
+    const options = { variables }
+    // Users
+    let owner = "e834b6c4-151f-4bf0-ba5a-8e92118b3ceb";
+    let yourweb = "54d2eb74-b496-4fa9-92b8-d3acde93506b";
+    let kevinRoad = "98f93702-e1b9-430a-845b-c77df7ea32cf";
+    let lenoreRoad = "6885ad91-6333-4e40-8777-914efc2a3a82";
+    let marneRoad = "a30f03ad-5280-404c-aa47-664cdbd0cd86";
+    let tawa = "2315a7fe-50d1-464b-b7dd-2d10435c0df8";
+    let pukekohe = "67e3bc15-009b-4f1f-a541-8527cbecbff9";
+    let weymouth = "43aab351-6a68-494c-ad09-6441b287720f";
+
+    //await triggeredEmails.emailContact(emailId, owner, options).then(() => console.log('Owner OK')).catch((err) => console.log(err));
+    for (let i = 0; i < centres.length; i++) {
+        if (centres[i] == 'Kelvin Road') await triggeredEmails.emailContact(emailId, kevinRoad, options).then(() => console.log('Kelvin OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Lenore Road') await triggeredEmails.emailContact(emailId, lenoreRoad, options).then(() => console.log('Lenore OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Marne Road') await triggeredEmails.emailContact(emailId, marneRoad, options).then(() => console.log('Marne OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Tawa-The Griffin School') await triggeredEmails.emailContact(emailId, tawa, options).then(() => console.log('Taka OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Pukekohe') await triggeredEmails.emailContact(emailId, pukekohe, options).then(() => console.log('Pukekohe OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Weymouth') await triggeredEmails.emailContact(emailId, weymouth, options).then(() => console.log('Weymouth OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Yourweb') await triggeredEmails.emailContact(emailId, yourweb, options).then(() => console.log('Yourweb OK')).catch((err) => console.log(err));
+        if (centres[i] == 'Bryan') await triggeredEmails.emailContact(emailId, yourweb, options).then(() => console.log('Bryan OK')).catch((err) => console.log(err));
+    }
+}
+
+export async function getContact(email) {
+    return await contacts.queryContacts().eq('info.emails.email', email).find({ suppressAuth: true }).then((contact) => {
+        if (contact.items.length > 0) {
+            let newContact = contact.items[0]._id
+            return newContact
+        } else console.log('Pailas')
+    }).catch((err) => console.log(err));
+}
+
+export function test() {
+    var url = "wix:document://v1/e66f95_7b371a19852d48feba3c86234ce75306.pdf/pdf.pdf";
+    var regex = /\/v1\/([a-zA-Z0-9_]+)\.pdf\//;
+    var match = url.match(regex);
+
+    if (match && match.length > 1) {
+        var parteDeseada = match[1];
+        console.log(parteDeseada); // Esto imprimirá "e66f95_7b371a19852d48feba3c86234ce75306" en la consola.
+    } else {
+        console.log("No se encontró la parte deseada en la URL.");
+    }
+}
