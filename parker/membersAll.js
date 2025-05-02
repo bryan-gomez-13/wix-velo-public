@@ -8,7 +8,12 @@ $w.onReady(function () {
     $w('#members').onItemReady(($item, itemData) => {
         $item('#readMore').onClick(() => {
             if (itemData.title == "Northland Marine Brokers") wixLocation.to('/northland-marine-brokers')
-            else wixLocation.to('/members-1/' + itemData.url)
+            else wixLocation.to('/members/' + itemData.url)
+        })
+
+        $item('#image105').onClick(() => {
+            if (itemData.title == "Northland Marine Brokers") wixLocation.to('/northland-marine-brokers')
+            else wixLocation.to('/members/' + itemData.url)
         })
     })
 });
@@ -17,7 +22,8 @@ function filter() {
     let filter = wixData.filter();
     let sort = wixData.sort();
     //Name of the field
-    if ($w('#search').value !== '') filter = filter.and(wixData.filter().eq("title", $w('#search').value));
+    if ($w('#search').value !== '') filter = filter.and(wixData.filter().contains("title", $w('#search').value));
+    filter = filter.and(wixData.filter().eq("status", true));
 
     if ($w('#sort').value == "A-Z") sort = sort.ascending("title");
     else sort = sort.descending("title");
