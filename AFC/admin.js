@@ -1,0 +1,181 @@
+import { getDropdownOptions, updateCollection, insertCollection, bulkInsertCollection, deleteItemFromCollection } from 'backend/collections.web.js';
+import { emailAdditionalInformation } from 'backend/email.web.js';
+import wixData from 'wix-data';
+
+$w.onReady(function () {
+    init();
+});
+
+// ==================================================== INIT
+function init() {
+    // DATA
+    getDropdownOptions('Form', 'title').then((options) => { $w('#subDropForms').options = options });
+    $w('#dataFormSubmissions').onReady(() => $w('#totalSubmissions').text = `${$w('#dataFormSubmissions').getTotalCount()} Submissions`);
+    $w('#dataMembers').onReady(() => { $w('#totalMembers').text = `${$w('#dataMembers').getTotalCount()} Members` });
+
+    // ADMIN
+    $w('#btSubmissions').onClick(() => { $w('#btSubmissions').disable(), $w('#btMembers').enable(), $w('#adminStates').changeState('Submissions') });
+    $w('#btMembers').onClick(() => { $w('#btMembers').disable(), $w('#btSubmissions').enable(), $w('#adminStates').changeState('Members') });
+
+    // STATE SUBMISSIONS
+    $w('#subSearch').onInput(() => filterSubmissions());
+    $w('#subDropForms').onChange(() => filterSubmissions());
+    $w('#subStatus').onChange(() => filterSubmissions());
+
+    $w('#repSubmissions').onItemReady(($item, itemData) => {
+        $item('#subName').text = `${itemData.firstName} ${itemData.surname}`;
+        $item('#boxSubmissions').onClick(() => submissionInfo(itemData._id));
+    })
+
+    // STATE SUBMISSIONS INFO
+    $w('#btBackSubmissionInfo').onClick(() => $w('#adminStates').changeState('Submissions'));
+    $w('#dataSubmissionItemInfo').onAfterSave(() => $w('#dataFormSubmissions').refresh());
+    $w('#btEmail').onClick(() => changeStateSendEmail());
+    $w('#seBtBack').onClick(() => $w('#adminStates').changeState('SubmissionInfo'));
+    $w('#seBtSendEmail').onClick(() => sendEmailToGetAdditionalInfo());
+
+    // STATE MEMBERS
+    $w('#mSearch').onInput(() => filterMembers());
+    $w('#mRepMembers').onItemReady(($item, itemData) => {
+        $item('#memName').text = `${itemData.firstName} ${itemData.surname}`;
+        $item('#boxMember').onClick(() => memberInfo(itemData.memberId));
+    })
+
+    // STATE MEMBERS INFO
+    $w('#mBack').onClick(() => $w('#adminStates').changeState('Members'));
+    $w('#btSaveDocument').onClick(() => saveCertificate());
+    $w('#memRepDocuments').onItemReady(($item, itemData) => {
+        $item('#deleteCertificate').onClick(() => {
+            deleteItemFromCollection('ACEProgrammedigitalcertificate', itemData._id).then(() => { refreshMemberDocuments(); })
+        })
+    })
+}
+
+// ==================================================== STATE SUBMISSIONS
+function filterSubmissions() {
+    let filter = wixData.filter();
+    const search = $w('#subSearch').value;
+    const form = $w('#subDropForms').value;
+    const status = $w('#subStatus').value;
+
+    if (search !== '') filter = filter.and(wixData.filter().contains('firstName', search).or(wixData.filter().contains('surname', search).or(wixData.filter().contains('emailAddress', search))));
+    if (form !== '' && form !== 'All') filter = filter.and(wixData.filter().eq('title', form));
+    if (status !== '' && status !== 'All') filter = filter.and(wixData.filter().eq('status', status));
+
+    $w('#dataFormSubmissions').setFilter(filter).then(() => {
+        $w('#dataFormSubmissions').onReady(() => { $w('#totalSubmissions').text = `${$w('#dataFormSubmissions').getTotalCount()} Submissions` });
+    })
+}
+
+// ==================================================== STATE SUBMISSION INFO
+function submissionInfo(submissionId) {
+    let filter = wixData.filter().eq('_id', submissionId);
+    $w('#dataSubmissionItemInfo').setFilter(filter).then(() => {
+        $w('#dataSubmissionItemInfo').onReady(() => {
+            const item = $w('#dataSubmissionItemInfo').getCurrentItem();
+            if (item.additionalInformation) {
+                let filterAdditionalInformation = wixData.filter().eq('submission', item._id);
+                $w('#dataAdditionalInformation').setFilter(filterAdditionalInformation).then(() => {
+                    if ($w('#dataAdditionalInformation').getTotalCount() > 0) {
+                        $w('#aiMessage').expand();
+                        $w('#aiRep').expand();
+                    } else {
+                        $w('#aiMessage').collapse();
+                        $w('#aiRep').collapse();
+                    }
+                })
+            } else {
+                $w('#aiMessage').collapse();
+                $w('#aiRep').collapse();
+            }
+        })
+    });
+
+    $w('#adminStates').changeState('SubmissionInfo');
+}
+
+function changeStateSendEmail() {
+    const item = $w('#dataSubmissionItemInfo').getCurrentItem();
+    $w('#seSubject').value = `AFC additional information required - ${item.title}`;
+    $w('#adminStates').changeState('SendEmail');
+}
+
+function sendEmailToGetAdditionalInfo() {
+    let item = $w('#dataSubmissionItemInfo').getCurrentItem();
+    item.additionalInformation = true;
+    const json = {
+        emailId: item.memberId,
+        subject: $w('#seSubject').value,
+        message: $w('#seMessage').value,
+        email: item.emailAddress,
+        form: item.title,
+        formId: item._id
+    }
+
+    insertCollection('HystoryAdditionalInformationEmail', json);
+
+    emailAdditionalInformation(json).then(() => {
+        $w('#seSubject').value = '';
+        $w('#seMessage').value = '';
+        $w('#seSubject').resetValidityIndication();
+        $w('#seMessage').resetValidityIndication();
+        $w('#seMessageSendEmail').show();
+        setTimeout(() => $w('#seMessageSendEmail').hide(), 3000);
+
+        updateCollection('Formssubmitted', item)
+    })
+}
+// ==================================================== STATE MEMBERS
+function filterMembers() {
+    let filter = wixData.filter();
+    const search = $w('#mSearch').value;
+
+    if (search !== '') filter = filter.and(wixData.filter().contains('firstName', search).or(wixData.filter().contains('surname', search).or(wixData.filter().contains('emailAddress', search))));
+
+    $w('#dataMembers').setFilter(filter).then(() => {
+        $w('#dataMembers').onReady(() => { $w('#totalMembers').text = `${$w('#dataMembers').getTotalCount()} Members` });
+    })
+
+}
+// ==================================================== STATE MEMBERS INFO
+function memberInfo(memberId) {
+    let filter = wixData.filter().eq('memberId', memberId);
+    $w('#dataMembersInfo').setFilter(filter);
+    $w('#dataMemberDocuments').setFilter(filter).then(() => {
+        $w('#dataMemberDocuments').onReady(() => {
+            if ($w('#dataMemberDocuments').getTotalCount() > 0) $w('#memRepDocuments').expand(), $w('#messageNoFiles').text = `${$w('#dataMemberDocuments').getTotalCount()} Files`;
+            else $w('#memRepDocuments').collapse(), $w('#messageNoFiles').text = `${$w('#dataMemberDocuments').getTotalCount()} Files`;
+        })
+    });
+    $w('#adminStates').changeState('MembersInfo');
+}
+
+function saveCertificate() {
+    const memberInfo = $w('#dataMembersInfo').getCurrentItem();
+
+    $w("#uploadMemberDocument").uploadFiles().then((uploadedFiles) => {
+            if (!uploadedFiles.length) throw new Error("No files uploaded.");
+
+            const certificate = uploadedFiles.map((document) => ({
+                title: document.originalFileName,
+                memberId: memberInfo.memberId,
+                document: document.fileUrl,
+                email: memberInfo.emailAddress
+            }));
+
+            return bulkInsertCollection('ACEProgrammedigitalcertificate', certificate);
+        }).then(() => { refreshMemberDocuments(); })
+        .catch((error) => {
+            console.error("Upload or insert failed:", error);
+        });
+}
+
+function refreshMemberDocuments() {
+    $w('#dataMemberDocuments').refresh().then(() => {
+        $w('#uploadMemberDocument').reset();
+        $w('#dataMemberDocuments').onReady(() => {
+            if ($w('#dataMemberDocuments').getTotalCount() > 0) $w('#memRepDocuments').expand(), $w('#messageNoFiles').text = `${$w('#dataMemberDocuments').getTotalCount()} Files`;
+            else $w('#memRepDocuments').collapse(), $w('#messageNoFiles').text = `${$w('#dataMemberDocuments').getTotalCount()} Files`;
+        })
+    })
+}

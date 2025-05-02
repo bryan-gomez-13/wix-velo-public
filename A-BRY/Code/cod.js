@@ -68,7 +68,4 @@ export function email(User) {
 }
 
 // PERMISSIONS
-let options = {
-    "suppressAuth": true,
-    "suppressHooks": true
-}; 
+const wixDataOptions = {"suppressAuth": true,"suppressHooks": true}; 
