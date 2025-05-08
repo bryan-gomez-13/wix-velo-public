@@ -1,4 +1,7 @@
+import { updateCollection } from 'backend/collections.web.js';
 import { createCheckout } from "backend/functions.web.js";
+import wixLocationFrontend from 'wix-location-frontend';
+import { session } from "wix-storage-frontend";
 import wixPayFrontend from "wix-pay-frontend";
 
 $w.onReady(function () {
@@ -13,9 +16,25 @@ $w.onReady(function () {
                 $item('#itemProducer1').style.color = "#FFFFFF";
                 $item('#itemProducer2').style.color = "#FFFFFF";
                 $item('#itemDescription').style.color = "#FFFFFF";
-            }else{
+            } else {
                 $item('#btBackThisBeat').icon = "";
             }
+
+            $item('#btBackThisBeat').onClick(() => {
+                session.setItem("section", "backThisBeat");
+                wixLocationFrontend.to(itemData['link-beats-title'])
+            })
+
+            $item('#btPurchaseThisBeat').onClick(() => {
+                session.setItem("section", "purchaseThisBeat");
+                wixLocationFrontend.to(itemData['link-beats-title'])
+            })
+
+            $item('#audio').onPlay(() => {
+                let audioPlays = (itemData.audioPlays) ? (itemData.audioPlays + 1) : 1;
+                itemData.audioPlays = audioPlays;
+                updateCollection("Beats", itemData);
+            })
             // $item('#btInvest').onClick(() => createCheckOutBackend(itemData.storeSong, false))
             // $item('#btBackThisBeat').onClick(() => createCheckOutBackend(itemData.storeSong, true))
         })

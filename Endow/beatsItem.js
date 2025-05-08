@@ -2,11 +2,18 @@ import { createCheckout, getVariants } from 'backend/functions.web.js';
 import { updateCollection } from 'backend/collections.web.js';
 import { currentMember } from "wix-members-frontend";
 import wixLocationFrontend from 'wix-location-frontend';
+import { session } from "wix-storage-frontend";
 
 let bronze, silver, gold, itemSelected, itemData, priceInvest;
 let songName;
 
 $w.onReady(function () {
+
+    if (session.getItem("section")) {
+        if (session.getItem("section") !== 'backThisBeat') $w('#secPurchase').scrollTo();
+        else $w('#boxInvest').scrollTo();
+        session.removeItem("section");
+    }
 
     $w('#dynamicDataset').onReady(() => {
         itemData = $w('#dynamicDataset').getCurrentItem();
@@ -69,6 +76,12 @@ $w.onReady(function () {
 
     $w('#form1').onFieldValueChange((newValues) => {
         if (newValues.song_name !== songName) $w('#form1').setFieldValues({ song_name: songName })
+    })
+
+    $w('#audio').onPlay(() => {
+        let audioPlays = (itemData.audioPlays) ? (itemData.audioPlays + 1) : 1;
+        itemData.audioPlays = audioPlays;
+        updateCollection("Beats", itemData);
     })
 });
 
