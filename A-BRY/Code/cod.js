@@ -69,3 +69,4 @@ export function email(User) {
 
 // PERMISSIONS
 const wixDataOptions = {"suppressAuth": true,"suppressHooks": true}; 
+
