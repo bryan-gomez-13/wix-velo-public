@@ -192,6 +192,9 @@ function updateRepeater() {
             }
         }
 
+        if (itemData.onSale) $item('#boxPriceReduced').expand();
+        else $item('#boxPriceReduced').collapse();
+
         $item('#title').onClick(() => wixLocationFrontend.to(itemData['link-boats-for-sale2-title']))
 
         if (followSave == itemData._id) {

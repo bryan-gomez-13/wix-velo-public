@@ -1,0 +1,4 @@
+import wixStoresBackend from 'wix-stores-backend';
+export function createOrder(fullOrder) {
+    return wixStoresBackend.createOrder(fullOrder);
+}

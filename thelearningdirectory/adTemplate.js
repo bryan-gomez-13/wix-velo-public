@@ -1,73 +1,101 @@
-import wixPaidPlans from 'wix-paid-plans';
+import { orders } from 'wix-pricing-plans-frontend';
+import { updateTemplate } from 'backend/collections.web.js'
+import { cancelOrders } from 'backend/functions.web.js';
+import wixWindowFrontend from 'wix-window-frontend';
+import wixLocationFrontend from 'wix-location-frontend';
 
-var orders = [];
+var ordersWix;
+// PlansIds
+var freeTrial = "3f7325a4-5b0f-45dd-9397-b9a3ce1f2dd4";
+var standardAdStartDate = "3bbb3d86-e37d-46e8-b7fe-b2357b08a55c";
+var standardAdByAppointment = "206f9520-8619-468c-90ef-190798511246";
+
 $w.onReady(async function () {
-    
-    await wixPaidPlans.getCurrentMemberOrders() //get order or plans
-        // Display orders in a table
-        .then((ordersn) => {
-            orders = ordersn;
-            console.log(orders);
-        })
-        .catch((err) => {
-            console.log(err);
-        });
+    init()
 
-    let plans = [];
-    for (let a = 0; a < orders.length; a++) { //Filter Orders by active status
-        if (orders[a].status === "ACTIVE") {
-            if(orders[a].id !== "d6a54e3d-e9db-4740-8dbe-102825b55ec3"){
-                plans.push({label: orders[a].planName, value: orders[a].id})
-                $w("#box1").hide();
-            }
-        }
-    }
-    console.log(plans);
-    $w('#dropdown2').options = plans;
+    orders.listCurrentMemberOrders().then((orderPlans) => {
+        ordersWix = orderPlans;
+        const activeOrders = ordersWix.filter(order => order.status === "ACTIVE");
+        const plansActive = activeOrders.filter(order => [freeTrial, standardAdStartDate, standardAdByAppointment].includes(order.planId))
+            .map(({ planName, _id }) => ({ label: planName, value: _id }));
+        if (plansActive.length > 0) $w('#box').changeState("adTemplate");
+        else $w('#box').changeState("dontPlan");
+        $w('#dropPlans').options = plansActive;
+    }).catch((err) => { console.log(err) });
 })
 
-export function button30_click(event) {
-    $w("#dataset17").save();
+function init() {
+    $w('#dateCourse').onChange(() => {
+        if ($w('#dateCourse').checked) {
+            $w('#gDate').expand();
+            $w('#startDate').required = true;
+            $w('#endDate').required = true;
+            $w('#startTime').required = true;
+            $w('#endTime').required = true;
 
-    for (let a = 0; a < orders.length; a++) { //Filter Orders by active status
-        if (orders[a].id === $w('#dropdown2').value) {
-            let plan = orders[a].planId;
-            var dknow = new Date();
-            console.log(dknow);
-            //                      FREE launch promo                                   cheap + more cheerfu          
-            if((plan === '3f7325a4-5b0f-45dd-9397-b9a3ce1f2dd4') || (plan === '206f9520-8619-468c-90ef-190798511246')){
-                dknow.setMonth(dknow.getMonth()+1);         //MONTH
-            //                          cheap and cheerful                                  eye catching banner
-            }else if((plan === '3bbb3d86-e37d-46e8-b7fe-b2357b08a55c') || (plan === 'd6a54e3d-e9db-4740-8dbe-102825b55ec3')){
-                dknow.setDate(dknow.getDate()+7);           //DAYS
-            //                              feature it
-            }else if(plan === '13b985c8-bef6-454e-90bf-7fb562ff6cb3'){
-                dknow.setDate(dknow.getDate()+14);          //DAYS
-            }
-            
-            console.log(dknow);
+            $w('#gAppointment').collapse();
+            $w('#gAppointment').required = false;
+        } else {
+            $w('#gDate').collapse();
+            $w('#startDate').required = false;
+            $w('#endDate').required = false;
+            $w('#startTime').required = false;
+            $w('#endTime').required = false;
 
-            $w("#dataset17").setFieldValues({
-                "startTime": $w("#timePicker1").value,
-                "finalTime": $w("#timePicker2").value,
-                "plan": plan,
-                "dateFinalCourse": dknow
-            })
-
-            cancelOrderPlan(orders[a].id);
-
-            break;
+            $w('#gAppointment').expand();
+            $w('#gAppointment').required = true;
         }
-    }
+    })
+
+    $w('#submit').onClick(() => {
+        $w('#saveTemplate').save().then((saveItem) => {
+            let plan = $w('#dropPlans').value;
+            const planName = ordersWix.find((item) => item._id == plan);
+            const planId = planName.planId;
+            var dknow = new Date();
+
+            // ============================ FREE launch promo   
+            if (planId == freeTrial) {
+                dknow.setMonth(dknow.getMonth() + 1); //MONTH
+                // ============================ standard Ad StartDate
+            } else if ((planId == standardAdStartDate)) {
+                dknow.setMonth(dknow.getMonth() + 2);
+                // ============================ standard Ad By Appointment
+            } else if (planId == standardAdByAppointment) {
+                dknow.setDate(dknow.getDate() + 70); //DAYS
+            }
+
+            const url = slugify(saveItem.title);
+
+            const json = {
+                "_id": saveItem._id,
+                "startTime": $w("#startTime").value,
+                "finalTime": $w("#endTime").value,
+                "plan": plan,
+                "dateFinalCourse": dknow,
+                "planName": planName.planName,
+                "metaTitle": saveItem.title,
+                "metaDescription": saveItem.largeDescription,
+                "urlSlug": url
+            }
+
+            updateTemplate(json);
+            cancelOrders(plan);
+        })
+
+        wixWindowFrontend.openLightbox("thanksPost").then(() => wixLocationFrontend.to("/"))
+    })
 }
 
-function cancelOrderPlan(orderId) {
-    wixPaidPlans.cancelOrder(orderId)
-    // Additional processing based on cancellation results
-    .then (() => {
-       console.log("orderCanceled")
-    })
-    .catch( (err) => {
-       console.log("cancelFailed")
-    });
+function slugify(text) {
+    return text
+        .toLowerCase()
+        .normalize("NFD") // decompose accents
+        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+        .replace(/[^a-z0-9\s-]/g, '') // remove special characters
+        .trim() // remove leading/trailing whitespace
+        .replace(/\s+/g, '-') // replace spaces with hyphens
+        .replace(/-+/g, '-') // collapse multiple hyphens
+        .replace(/^-+|-+$/g, ''); // remove hyphens from start/end
+
 }

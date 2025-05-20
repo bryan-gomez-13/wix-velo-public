@@ -31,48 +31,46 @@ export function init() {
 }
 
 function getDate() {
+    wixData.query("Course").eq("_id", '78fbab14-7868-46f8-8801-f7e209761bc2').find().then((results) => {
+        if (results.items.length > 0) {
+            let firstItem = results.items[0]; //see item below
+            console.log(firstItem)
+            let date = new Date(firstItem.date);
+            $w('#date').text = date.toDateString();
 
-    wixData.query("Course")
-        .eq("course", 'L1DT')
-        .find()
-        .then((results) => {
-            if (results.items.length > 0) {
-                let firstItem = results.items[0]; //see item below
-                let date = new Date(firstItem.date);
-                $w('#date').text = date.toDateString();
+            $w('#pricingDetails').text = 'L1DT $' + firstItem.price;
+            total = firstItem.price
+            $w('#totalPrice').text = '$' + firstItem.price;
+            $w('#cost').text = '$' + firstItem.price;
 
-                $w('#pricingDetails').text = 'L1DT $' + firstItem.price;
-                total = firstItem.price
-                $w('#totalPrice').text = '$' + firstItem.price;
-                $w('#cost').text = '$' + firstItem.price;
+            $w('#numberOFPeople').text = "" + firstItem.numberOfPeople;
 
-                $w('#numberOFPeople').text = "" + firstItem.numberOfPeople;
+            $w('#SubmitNoT').text = firstItem.formDisabledMessage;
 
-                if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#BOne').disable();
-                    $w('#fullName').disable();
-                    $w('#phone').disable();
-                    $w('#email').disable();
-                    $w('#confirmEmail').disable();
-                    $w('#address').disable();
-                    $w('#question').disable();
-                    $w('#SubmitNoT').expand();
+            if (firstItem.enableForm == false || parseInt(firstItem.numberOfPeople) <= 0) {
+                $w('#BOne').disable();
+                $w('#fullName').disable();
+                $w('#phone').disable();
+                $w('#email').disable();
+                $w('#confirmEmail').disable();
+                $w('#address').disable();
+                $w('#question').disable();
+                $w('#SubmitNoT').expand();
 
-                    /*$w('#group5').collapse();
-                    $w('#confirmEmail').collapse();
-                    $w('#address').collapse();
-                    $w('#question').collapse();
-                    
-                    $w('#SubmitNoB').expand();*/
-                }
-
-            } else {
-                // handle case where no matching items found
+                /*$w('#group5').collapse();
+                $w('#confirmEmail').collapse();
+                $w('#address').collapse();
+                $w('#question').collapse();
+                
+                $w('#SubmitNoB').expand();*/
             }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
+
+        } else {
+            // handle case where no matching items found
+        }
+    }).catch((err) => {
+        let errorMsg = err;
+    });
 }
 
 //	==================================================================== F I R T S	====================================================================
@@ -262,7 +260,8 @@ async function pay(course) {
 
 //	==================================================================== G O O G L E    S H E E T ====================================================================
 async function saveValuesToSheet(payment) {
-    const date = $w('#date').text;
+    let dateT = new Date($w('#date').text);
+    let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
 
     const agressionQuestion = $w('#question').value;
     const fullName = $w('#fullName').value;
@@ -271,7 +270,7 @@ async function saveValuesToSheet(payment) {
     const fullAddress = $w('#address').value.formatted;
 
     const dogsName = $w('#name').value;
-    const dogsDob = $w('#dob').value.toDateString();
+    const dogsDob = $w('#dob').value.getDate() + '/' + (parseInt($w('#dob').value.getMonth()) + 1) + '/' + $w('#dob').value.getFullYear()
     const dogsBreed = $w('#breed').value;
     const dogsStatus = $w('#status').value;
 
@@ -400,7 +399,8 @@ async function saveMember() {
 
 //	==================================================================== E M A I L ====================================================================
 export async function getEmail() {
-
+    let dateT = new Date($w('#date').text);
+    let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
     await wixData.query("Members").eq('email', $w('#email').value)
         .find()
         .then(async (results) => {
@@ -408,7 +408,7 @@ export async function getEmail() {
                 //console.log(results.items[0])
                 let json = {
                     "idPrivateMember": results.items[0].idPrivateMember,
-                    "date": $w('#date').text,
+                    "date": date,
                     "FullName": $w('#fullName').value,
                     "Mobile": $w('#phone').value,
                     "Email": results.items[0].email,
@@ -478,11 +478,13 @@ async function fullPeople() {
     $w('#textValidation1').collapse();
     try {
         checkValidationOne();
+        let dateT = new Date($w('#date').text);
+        let dateC = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
 
         if ($w('#question').value == "Yes") {
             wixLocation.to('/behaviour');
         } else {
-            const date = $w('#date').text;
+            const date = dateC;
             const course = "L1DT"
             const fullName = $w('#fullName').value;
             const email = $w('#email').value;

@@ -138,7 +138,6 @@ export const updateCollection = webMethod(Permissions.Anyone, async (collectionI
 })
 
 export const updateBeatHistory = webMethod(Permissions.Anyone, async (investorInfo) => {
-    console.log("updateBeatHistory")
     const beats = await generalQuery('Beats', 'investor', investorInfo.memberId);
     const commissionRates = { "12": 0.20, "24": 0.25, "36": 0.30 };
     const buyers = investorInfo.buyers || [];

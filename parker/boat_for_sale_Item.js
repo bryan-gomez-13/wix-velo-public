@@ -12,6 +12,9 @@ $w.onReady(async function () {
 
         const viewKey = `viewed_${itemData._id}`;
 
+        if (itemData.onSale) $w('#boxPriceReduced').expand();
+        else $w('#boxPriceReduced').collapse();
+
         // Check if already updated in this session for this specific item
         if (!session.getItem(viewKey)) {
             session.setItem(viewKey, "true"); // mark as viewed in session

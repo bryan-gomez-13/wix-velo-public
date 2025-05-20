@@ -1,5 +1,5 @@
 import { currentMember } from "wix-members-frontend";
-import { generalQuery } from 'backend/collections.web.js';
+import { generalQuery, updateBeatHistory } from 'backend/collections.web.js';
 
 $w.onReady(function () {
     getMemberInfo();
@@ -21,8 +21,8 @@ $w.onReady(function () {
 function getMemberInfo() {
     currentMember.getMember({ fieldsets: ['FULL'] }).then((member) => {
         generalQuery("Payouts", "memberId", member._id).then(async (results) => {
-            if (results.length > 0) {
-                const beatInfo = results[0];
+            const beatInfo = results[0];
+            if (results.length > 0 && results[0].history) {
                 // VIEW MY BEATS
                 $w('#totalSales').text = `Total Sales: ${beatInfo.totalSales}`;
                 $w('#commissionEarned').text = `Total Commission Earned: ${beatInfo.totalCommissionEarned}`;
@@ -56,11 +56,18 @@ function getMemberInfo() {
 
                 $w('#repBeats').show();
 
-                $w('#repPayouts').data = beatInfo.paymentHistory;
-                $w('#repPayouts').onItemReady(async ($item, itemData) => {
-                    $item('#date').text = `Date: ${itemData.date}`;
-                    $item('#payment').text = `Payment: ${itemData.commission}`;
-                })
+                if (beatInfo.paymentHistory) {
+                    $w('#repPayouts').data = beatInfo.paymentHistory;
+                    $w('#repPayouts').onItemReady(async ($item, itemData) => {
+                        $item('#date').text = `Date: ${itemData.date}`;
+                        $item('#payment').text = `Payment: ${itemData.commission}`;
+                    })
+                }else{
+                    $w('#repPayouts').collapse();
+                }
+            } else {
+                await updateBeatHistory(beatInfo);
+                getMemberInfo();
             }
         })
     }).catch((error) => { console.error(error); });
