@@ -62,8 +62,8 @@ export const getDropdownOptions = webMethod(Permissions.Anyone, async (collectio
 
 })
 // =========================================================================== UPDATE
-export const updateCollection = webMethod(Permissions.Anyone, (collectionId, json) => {
-    wixData.update(collectionId, json, wixDataOptions)
+export const updateCollection = webMethod(Permissions.Anyone, async (collectionId, json) => {
+    await wixData.update(collectionId, json, wixDataOptions)
 });
 // =========================================================================== DELETE
 export const deleteItemFromCollection = webMethod(Permissions.Anyone, async (collectionId, itemId) => {
