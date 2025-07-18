@@ -70,3 +70,71 @@ export function email(User) {
 // PERMISSIONS
 const wixDataOptions = {"suppressAuth": true,"suppressHooks": true}; 
 
+// Save pdf
+export async function generatePDFnewYourweb(template_id, pdfData, updatedItem) {
+
+    const api_key = await wixSecretsBackend.getSecret("api_key");
+    var json_payload = JSON.stringify({
+        "data": pdfData,
+        "output_file": "output.pdf",
+        "export_type": "json",
+        "expiration": 1000,
+        "template_id": template_id
+    });
+
+    return fetch("https://api.craftmypdf.com/v1/create", {
+            "method": 'POST',
+            "headers": {
+                'Content-Type': 'application/json',
+                "X-API-KEY": api_key
+            },
+            "body": json_payload
+        })
+        .then(response => response.json())
+        .then(json => {
+            console.log(json);
+            let fileRecieved = json.file;
+            console.log(fileRecieved);
+
+            uploadFile(fileRecieved, updatedItem.firstName).then((fileDetails) => {
+                console.log(fileDetails.fileUrl)
+
+                let dataUpdateOptions = { "suppressAuth": true };
+
+                wixData.get("MainCertificateDatabase", updatedItem._id, dataUpdateOptions).then(async (item) => {
+                    item.medicalCertificate = fileDetails.fileUrl; // updated last name
+                    wixData.update("MainCertificateDatabase", item, dataUpdateOptions);
+                    console.log(item); //see item below
+
+                    // 1 day 1440
+                    let downloadLink = await getDownloadUrl(fileDetails.fileUrl, 1440, `https://www.midoc.com.au/resend-medical-certification?medicalCertificationId=${item._id}`);
+
+                    if (item.personID) {
+                        emailContactWithCertificate(item.personID, item.firstName, downloadLink)
+                    } else if (!item.personID) {
+                        queryContactForID(item.email)
+                            .then((contactID) => {
+                                emailContactWithCertificate(contactID, item.firstName, downloadLink)
+                            })
+                    }
+
+                }).catch((err) => { console.log(err); });
+            })
+        });
+}
+
+import { mediaManager } from 'wix-media-backend';
+export function uploadFile(url, name) {
+    return mediaManager.importFile(
+        "/allMedicalCertificates",
+        url, {
+            "mediaOptions": {
+                "mimeType": "application/pdf",
+                "mediaType": "document"
+            },
+            "metadataOptions": {
+                "fileName": `${name}_medical_certificate.pdf`
+            }
+        }
+    );
+}

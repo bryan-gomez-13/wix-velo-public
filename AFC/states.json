@@ -1,0 +1,168 @@
+[
+    {
+        "order": 1,
+        "state": "personalDetails",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            "#firstName",
+            "#surname",
+            "#nationality",
+            "#dateOfBirth",
+            "#passportNo",
+            "#gender",
+            "#image",
+            "#emailAddress",
+            "#mobileNumber",
+            "#homeAddress"
+        ],
+        "itemsObjectCheck": false,
+        "itemObject": "null"
+    },
+    {
+        "order": 2,
+        "state": "rolesResponsibilities",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            "#currentPositionTitle",
+            "#department",
+            "#divisionUnit",
+            "#dateJoined",
+            "#typeOfEmployment",
+            "#ifContractValidityPeriod",
+            {
+                "repId": "#rrRepRoleResponsabilities",
+                "fieldsId": [
+                    "#rrRole",
+                    "#rrResponsabilities",
+                    "#rrDeliverables"
+                ],
+                "validation": ""
+            },
+            "#rrProfessionalAchievementValidation",
+            {
+                "repId": "#rrProfessionalAchievementsRep",
+                "fieldsId": [
+                    "#rrProfessionalAchievement"
+                ],
+                "validation": "#rrProfessionalAchievementValidation"
+            },
+            "#rrPreviousPosition",
+            "#rrPositionTitle",
+            "#rrDateJoinend",
+            "#rrRolesResponsabilities"
+        ],
+        "itemsObjectCheck": true,
+        "itemObject": {
+            "currentRoleAndResponsabilities": {
+                "repeater": "#rrRepRoleResponsabilities",
+                "txtInfo": "",
+                "collectionField": "currentRolesAndResponsabilitiesInfo",
+                "collectionFieldTxT": "currentRolesAndResponsabilitiesInfoTxT"
+            },
+            "professionalAchievements": {
+                "repeater": "#rrProfessionalAchievementsRep",
+                "txtInfo": "",
+                "collectionField": "professionalAchievementsInfo",
+                "collectionFieldTxT": "professionalAchievementsTxT"
+            }
+        }
+    },
+    {
+        "order": 3,
+        "state": "workExperience",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            {
+                "repId": "#repWE",
+                "fieldsId": [
+                    "#weOrganisation",
+                    "#wePositionTitle",
+                    "#weYearOfService",
+                    "#weResponsibilities"
+                ],
+                "validation": ""
+            }
+        ],
+        "itemsObjectCheck": true,
+        "itemObject": {
+            "workExperience": {
+                "repeater": "#repWE",
+                "txtInfo": "",
+                "collectionField": "workExperienceInfo",
+                "collectionFieldTxT": "workExperienceTxT"
+            }
+        }
+    },
+    {
+        "order": 4,
+        "state": "AcademicProfessionalQualifications",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            {
+                "repId": "#apqRepAcademicProfessional",
+                "fieldsId": [
+                    "#apqAcademyInstitution",
+                    "#apqCityCountry",
+                    "#apqDatesattended",
+                    "#apqQualification"
+                ],
+                "validation": ""
+            },
+            "#apqEnrolled",
+            "#apqeAcademyInstitution",
+            "#apqeCityCountry",
+            "#apqeDatesAttended",
+            "#apqeQualification"
+        ],
+        "itemsObjectCheck": true,
+        "itemObject": {
+            "academicProfessional": {
+                "repeater": "#apqRepAcademicProfessional",
+                "txtInfo": "",
+                "collectionField": "academicProfessionalQualificationsInfo",
+                "collectionFieldTxT": "academicProfessionalQualificationsTxT"
+            }
+        }
+    },
+    {
+        "order": 5,
+        "state": "englishLanguageProficiency",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            "#elpWrittenEnglish",
+            "#elpSpokenEnglish",
+            "#elpPracticeOfEnglish",
+            "#elpInternationallyRecognised",
+            "#elpNameOfEnglishQualification",
+            "#elpAccreditedEndorsedBy",
+            "#elpCommencementCompletionDate",
+            "#elpCertificateOfCompletion"
+        ],
+        "itemsObjectCheck": false,
+        "itemObject": {}
+    },
+    {
+        "order": 6,
+        "state": "itProficiency",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            "#itpUsageOfOnlinePlatformsPreviously",
+            "#itpUnderstandingAndUsageOfIt"
+        ],
+        "itemsObjectCheck": false,
+        "itemObject": {}
+    },
+    {
+        "order": 7,
+        "state": "declarations",
+        "itemsArrayCheck": true,
+        "itemsArray": [
+            "#dName",
+            "#dDesignation",
+            "#dDate",
+            "#dSignatureFile"
+        ],
+        "itemsObjectCheck": false,
+        "itemObject": {}
+    }
+]

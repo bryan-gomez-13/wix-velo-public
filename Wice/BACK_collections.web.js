@@ -55,5 +55,30 @@ export const getDropdownOptions = webMethod(Permissions.Anyone, async (collectio
     return allItems;
 });
 
+export const getHomeRepeater = webMethod(Permissions.Anyone, async () => {
+    try {
+        const items = await getCollection('Membersdirectory');
+        const shuffled = shuffleArray(items);
+        const randomSix = shuffled.slice(0, 6);
+        return randomSix;
+
+    } catch (err) {
+        console.log("Error al cargar los datos:", err);
+    }
+})
+
+function shuffleArray(array) {
+    let currentIndex = array.length,
+        randomIndex;
+    while (currentIndex !== 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]
+        ];
+    }
+    return array;
+}
+
 // ========================================================== UPDATE
 // ========================================================== DELETE

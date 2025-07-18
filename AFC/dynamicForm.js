@@ -1,12 +1,12 @@
-import { insertCollection } from 'backend/collections.web.js';
+import { insertCollection, getFormInfoAfterSave, deleteItemFromCollection } from 'backend/collections.web.js';
+import wixLocationFrontend from 'wix-location-frontend';
 import { currentMember } from "wix-members-frontend";
+import { emailForms, emailSignRequired } from 'backend/email.web.js';
 import wixData from 'wix-data';
-
-import { emailForms } from 'backend/email.web.js';
 
 let stateOrder = 1,
     state = [],
-    item, memberId;
+    item, memberId, autoSaveId, responsibleDeclaration, currentMemberInfo;
 
 const validationPersonalDetails = [
     '#firstName',
@@ -18,7 +18,10 @@ const validationPersonalDetails = [
     '#image',
     '#emailAddress',
     '#mobileNumber',
-    '#homeAddress'
+    '#addressLine',
+    '#city',
+    '#postalCode',
+    '#country'
 ];
 
 const validationRoles = [
@@ -42,12 +45,13 @@ const validationWE = [
 ]
 
 const validationAcademicProfessionalQualifications = [
-    { repId: '#apqRepAcademicProfessional', fieldsId: ['#apqAcademyInstitution', '#apqCityCountry', '#apqDatesattended', '#apqQualification'], validation: '' },
+    { repId: '#apqRepAcademicProfessional', fieldsId: ['#apqAcademyInstitution', '#apqCityCountry', '#apqDatesattended', '#apqQualification', '#apqUpdateAcademicCertificate'], validation: '' },
     '#apqEnrolled',
     '#apqeAcademyInstitution',
     '#apqeCityCountry',
     '#apqeDatesAttended',
-    '#apqeQualification'
+    '#apqeQualification',
+    '#uploadEducationCertificates'
 ]
 
 const validationEnglishLanguageProficiency = [
@@ -58,7 +62,8 @@ const validationEnglishLanguageProficiency = [
     '#elpNameOfEnglishQualification',
     '#elpAccreditedEndorsedBy',
     '#elpCommencementCompletionDate',
-    '#elpCertificateOfCompletion'
+    '#elpCertificateOfCompletion',
+    '#uploadEnglishCertificate',
 ]
 
 const validationItProficiency = [
@@ -70,7 +75,19 @@ const validactionDeclarations = [
     '#dName',
     '#dDesignation',
     '#dDate',
+    '#signatureType',
     '#dSignatureFile',
+    '#dSignatureFile2'
+]
+
+const validactionDeclarations2 = [
+    '#responsibleNameDeclaration',
+    '#responsibleDateDeclaration',
+    '#responsibleSignatureOption',
+    '#responsibleSignatureType',
+    '#responsibleSign',
+    '#responsibleSign2',
+    '#responsibleEmailSignature'
 ]
 
 let workExperienceData = [{ _id: '1', weOrganisation: '', wePositionTitle: '', weYearOfService: '', weResponsibilities: '' }];
@@ -87,21 +104,25 @@ let academicProfessionalItems = { apqAcademyInstitution: '', apqCityCountry: '',
 
 $w.onReady(function () {
     getMember();
-    init();
 });
 
-function getMember() {
-    currentMember.getMember({ fieldsets: ['FULL'] }).then(async (member) => {
+async function getMember() {
+    await currentMember.getMember({ fieldsets: ['FULL'] }).then(async (member) => {
         if (member._id) {
             memberId = member._id;
             let filter = wixData.filter().eq('memberId', member._id);
-            $w('#dataset1').setFilter(filter);
-            $w('#formStages').changeState('personalDetails');
-            $w('#dataset1').onReady(() => {
-                const currentMember = $w('#dataset1').getCurrentItem();
+            $w('#dataset1').setFilter(filter).then(() => {
+                $w('#dataset1').onReady(() => {
+                    $w('#formStages').changeState('personalDetails');
+                    currentMemberInfo = $w('#dataset1').getCurrentItem();
+                    console.log('currentMemberInfo', currentMemberInfo)
+                    validationState(validationPersonalDetails, false);
+                    validationPersonalDetails.push('#applicantType');
+
+                    init();
+                })
             })
         }
-
     }).catch((error) => { console.error(error); });
 }
 
@@ -109,6 +130,19 @@ function init() {
     // Get Form Info
     $w('#dynamicDataset').onReady(() => {
         item = $w('#dynamicDataset').getCurrentItem();
+        console.log('item', item)
+
+        if (item.available == false || (item.available == true && item.numberOfApplications <= 0)) {
+            $w('#formStages').changeState('applicationEnd');
+            $w('#saveFormBackLater').collapse();
+        }
+
+        getFormInfoAfterSave(item.title, memberId, 'getInfo').then((formInfo) => { if (formInfo) insertFormInfo(formInfo) })
+
+        $w('#dResponsibleDeclaration').html = item.responsibleDeclaration;
+        responsibleDeclaration = item.responsibleDeclaration;
+
+        changeHtml();
 
         // personalDetails
         if (item.personalDetails) state.push({ order: item.personalDetailsOrder, state: "personalDetails", itemsArrayCheck: true, itemsArray: validationPersonalDetails, itemsObjectCheck: false, itemObject: null });
@@ -221,20 +255,31 @@ function init() {
             itemsObjectCheck: false,
             itemObject: jsonObject
         });
+
+        state.push({
+            order: state.length + 1,
+            state: "declarations2",
+            itemsArrayCheck: true,
+            itemsArray: validactionDeclarations2,
+            itemsObjectCheck: false,
+            itemObject: jsonObject
+        });
+
+        console.log('state', state)
     })
 
-    console.log(state)
     wixData.insert('Catch', { array: state }, { "suppressAuth": true, "suppressHooks": true })
 
     // ===================== Buttons functionality
     // Next
-    $w('#pdNext').onClick(() => validationState(validationPersonalDetails));
-    $w('#rrNext').onClick(() => validationState(validationRoles));
-    $w('#weNext').onClick(() => validationState(validationWE));
-    $w('#apqNext').onClick(() => validationState(validationAcademicProfessionalQualifications));
-    $w('#elpNext').onClick(() => validationState(validationEnglishLanguageProficiency));
-    $w('#itpNext').onClick(() => validationState(validationItProficiency));
-    $w('#dNext').onClick(() => validationState(validactionDeclarations));
+    $w('#pdNext').onClick(() => validationState(validationPersonalDetails, true));
+    $w('#rrNext').onClick(() => validationState(validationRoles, true));
+    $w('#weNext').onClick(() => validationState(validationWE, true));
+    $w('#apqNext').onClick(() => validationState(validationAcademicProfessionalQualifications, true));
+    $w('#elpNext').onClick(() => validationState(validationEnglishLanguageProficiency, true));
+    $w('#itpNext').onClick(() => validationState(validationItProficiency, true));
+    $w('#dNext').onClick(() => validationState(validactionDeclarations, true));
+    $w('#d2Next').onClick(() => validationState(validactionDeclarations2, true));
 
     // Previous
     $w('#rrPrevious').onClick(() => changeState("Previous"));
@@ -242,13 +287,27 @@ function init() {
     $w('#apqPrevious').onClick(() => changeState("Previous"));
     $w('#elpPrevious').onClick(() => changeState("Previous"));
     $w('#itpPrevious').onClick(() => changeState("Previous"));
-    $w('#dPrevious').onClick(() => {
-        const number = state.length - 1;
-        const nextState = state.find(item => item.order == number);
+    $w('#dPrevious').onClick(() => changeState("Previous"));
+    $w('#d2Previous').onClick(() => changeState("Previous"));
+    // $w('#dPrevious').onClick(() => {
+    //     changeState("Previous")
+    //     // const number = state.length - 1;
+    //     // const nextState = state.find(item => item.order == number);
 
-        if (nextState !== undefined) $w('#formStages').changeState(nextState.state);
-        else $w('#formStages').changeState('declarations');
-    });
+    //     // if (nextState !== undefined) $w('#formStages').changeState(nextState.state);
+    //     // else $w('#formStages').changeState('declarations');
+    // });
+
+    // Personal Information
+    $w('#applicantType').onChange(() => {
+        if ($w('#applicantType').value == 'Independent – Applicant & their organization') {
+            $w('#responsibleNameDeclaration').value = 'Not applicable';
+        } else {
+            $w('#responsibleNameDeclaration').value = '';
+        }
+
+        changeHtml()
+    })
 
     // ===================== Roles & Responsabilities
     // Roles & Responsabilities
@@ -278,19 +337,7 @@ function init() {
 
     // PROFESSIONAL ACHIEVEMENTS
     // CHECK
-    $w('#rrProfessionalAchievementValidation').onChange(() => {
-        if ($w('#rrProfessionalAchievementValidation').value == 'Applicable') {
-            $w('#rrProfessionalAchievementsRep').expand();
-            $w('#rrAddProfessionalAchievement').expand();
-
-            $w('#rrProfessionalAchievement').required = true;
-        } else {
-            $w('#rrProfessionalAchievementsRep').collapse();
-            $w('#rrAddProfessionalAchievement').collapse();
-
-            $w('#rrProfessionalAchievement').required = false;
-        }
-    })
+    $w('#rrProfessionalAchievementValidation').onChange(() => f_rrProfessionalAchievementValidation())
 
     // REPEATER
     $w('#rrProfessionalAchievementsRep').data = professionalAchievementsData;
@@ -312,29 +359,7 @@ function init() {
     $w('#rrAddProfessionalAchievement').onClick(() => addItemToRepeater(professionalAchievementsData, '#rrProfessionalAchievementsRep', professionalAchievementsItems));
 
     // PREVIOUS POSITION
-    $w('#rrPreviousPosition').onChange(() => {
-        if ($w('#rrPreviousPosition').value == 'Applicable') {
-            $w('#rrPositionTitle').expand();
-            $w('#rrDateJoinend').expand();
-            $w('#rrRolesResponsabilities').expand();
-
-            $w('#rrPositionTitle').required = true;
-            $w('#rrDateJoinend').required = true;
-            $w('#rrRolesResponsabilities').required = true;
-        } else {
-            $w('#rrPositionTitle').collapse();
-            $w('#rrDateJoinend').collapse();
-            $w('#rrRolesResponsabilities').collapse();
-
-            $w('#rrPositionTitleError').hide();
-            $w('#rrDateJoinendError').hide();
-            $w('#rrRolesResponsabilitiesError').hide();
-
-            $w('#rrPositionTitle').required = false;
-            $w('#rrDateJoinend').required = false;
-            $w('#rrRolesResponsabilities').required = false;
-        }
-    })
+    $w('#rrPreviousPosition').onChange(() => f_rrPreviousPosition());
 
     // ===================== WORK EXPERIENCE
     // REPEATER
@@ -396,68 +421,266 @@ function init() {
     $w('#addAPQ').onClick(() => addItemToRepeater(academicProfessionalData, '#apqRepAcademicProfessional', academicProfessionalItems));
 
     // PREVIOUS POSITION
-    $w('#apqEnrolled').onChange(() => {
-        if ($w('#apqEnrolled').value == 'Applicable') {
-            $w('#apqeAcademyInstitution').expand();
-            $w('#apqeCityCountry').expand();
-            $w('#apqeDatesAttended').expand();
-            $w('#apqeQualification').expand();
-
-            $w('#apqeAcademyInstitution').required = true;
-            $w('#apqeCityCountry').required = true;
-            $w('#apqeDatesAttended').required = true;
-            $w('#apqeQualification').required = true;
-        } else {
-            $w('#apqeAcademyInstitution').collapse();
-            $w('#apqeCityCountry').collapse();
-            $w('#apqeDatesAttended').collapse();
-            $w('#apqeQualification').collapse();
-
-            $w('#apqeAcademyInstitutionError').hide();
-            $w('#apqeCityCountryError').hide();
-            $w('#apqeDatesAttendedError').hide();
-            $w('#apqeQualificationError').hide();
-
-            $w('#apqeAcademyInstitution').required = false;
-            $w('#apqeCityCountry').required = false;
-            $w('#apqeDatesAttended').required = false;
-            $w('#apqeQualification').required = false;
-        }
-    })
+    $w('#apqEnrolled').onChange(() => f_apqEnrolled())
 
     // ===================== ENGLISH LANGUAGE PROFICIENCY
-    $w('#elpInternationallyRecognised').onChange(() => {
-        if ($w('#elpInternationallyRecognised').value == 'Yes') {
-            $w('#elpNameOfEnglishQualification').expand();
-            $w('#elpAccreditedEndorsedBy').expand();
-            $w('#elpCommencementCompletionDate').expand();
-            $w('#elpCertificateOfCompletion').expand();
+    $w('#elpInternationallyRecognised').onChange(() => f_elpInternationallyRecognised())
+    // ===================== DECLARATIONS
+    $w('#signatureType').onChange(() => {
+        if ($w('#signatureType').value == 'Digital signature') {
+            $w('#dSignatureFile').required = true;
+            $w('#dSignatureFile2').required = false;
 
-            $w('#elpNameOfEnglishQualification').required = true;
-            $w('#elpAccreditedEndorsedBy').required = true;
-            $w('#elpCommencementCompletionDate').required = true;
-            $w('#elpCertificateOfCompletion').required = true;
+            $w('#dSignatureFileError').hide();
+            $w('#dSignatureFile2Error').hide();
+
+            $w('#dSignatureFile').expand();
+            $w('#dSignatureFile2').collapse();
         } else {
-            $w('#elpNameOfEnglishQualification').collapse();
-            $w('#elpAccreditedEndorsedBy').collapse();
-            $w('#elpCommencementCompletionDate').collapse();
-            $w('#elpCertificateOfCompletion').collapse();
+            $w('#dSignatureFile').required = false;
+            $w('#dSignatureFile2').required = true;
 
-            $w('#elpNameOfEnglishQualificationError').hide();
-            $w('#elpAccreditedEndorsedByError').hide();
-            $w('#elpCommencementCompletionDateError').hide();
-            $w('#elpCertificateOfCompletionError').hide();
+            $w('#dSignatureFileError').hide();
+            $w('#dSignatureFile2Error').hide();
 
-            $w('#elpNameOfEnglishQualification').required = false;
-            $w('#elpAccreditedEndorsedBy').required = false;
-            $w('#elpCommencementCompletionDate').required = false;
-            $w('#elpCertificateOfCompletion').required = false;
+            $w('#dSignatureFile').collapse();
+            $w('#dSignatureFile2').expand();
         }
     })
 
-    // ===================== DECLARATIONS
+    $w('#responsibleSignatureType').onChange(() => {
+        if ($w('#responsibleSignatureType').value == 'Digital signature') {
+            $w('#responsibleSign').required = true;
+            $w('#responsibleSign2').required = false;
+
+            $w('#responsibleSignError').hide();
+            $w('#responsibleSign2Error').hide();
+
+            $w('#responsibleSign').expand();
+            $w('#responsibleSign2').collapse();
+        } else {
+            $w('#responsibleSign').required = false;
+            $w('#responsibleSign2').required = true;
+
+            $w('#responsibleSignError').hide();
+            $w('#responsibleSign2Error').hide();
+
+            $w('#responsibleSign').collapse();
+            $w('#responsibleSign2').expand();
+        }
+    })
+
+    $w('#responsibleNameDeclaration').onInput(() => changeHtml())
+
+    $w('#responsibleSignatureOption').onChange(() => {
+        if ($w('#responsibleSignatureOption').value == 'Digital Signature') {
+            // Sign
+            $w('#responsibleSignatureType').expand();
+            $w('#responsibleEmailSignature').collapse();
+
+            $w('#responsibleSignatureTypeError').hide();
+            $w('#responsibleEmailSignatureError').hide();
+
+            $w('#responsibleSignatureType').required = true;
+            $w('#responsibleEmailSignature').required = false;
+            $w('#responsibleEmailSignature').required = false;
+
+            // Sign Options
+            if ($w('#responsibleSignatureType').value == 'Digital signature') {
+                $w('#responsibleSign').expand();
+                $w('#responsibleSign2').collapse();
+
+                $w('#responsibleSignError').hide();
+                $w('#responsibleSign2Error').hide();
+
+                $w('#responsibleSign').required = true;
+                $w('#responsibleSign2').required = false;
+            } else {
+                $w('#responsibleSign').collapse();
+                $w('#responsibleSign2').expand();
+
+                $w('#responsibleSignError').hide();
+                $w('#responsibleSign2Error').hide();
+
+                $w('#responsibleSign').required = false;
+                $w('#responsibleSign2').required = true;
+            }
+
+            // Physical Signature
+            $w('#messagePhysicalSignature').collapse();
+        } else if ($w('#responsibleSignatureOption').value == 'Email to director') {
+            //Email
+            $w('#responsibleSignatureType').collapse();
+            $w('#responsibleEmailSignature').expand();
+
+            $w('#responsibleSignatureTypeError').hide();
+            $w('#responsibleEmailSignatureError').hide();
+
+            $w('#responsibleSignatureType').required = false;
+            $w('#responsibleEmailSignature').required = true;
+
+            // Sign Options
+            $w('#responsibleSign').collapse();
+            $w('#responsibleSign2').collapse();
+
+            $w('#responsibleSignError').hide();
+            $w('#responsibleSign2Error').hide();
+
+            $w('#responsibleSign').required = false;
+            $w('#responsibleSign2').required = false;
+
+            // Physical Signature
+            $w('#messagePhysicalSignature').collapse();
+        } else if ($w('#responsibleSignatureOption').value == 'Physical Signature') {
+            //Email
+            $w('#responsibleSignatureType').collapse();
+            $w('#responsibleEmailSignature').collapse();
+
+            $w('#responsibleSignatureTypeError').hide();
+            $w('#responsibleEmailSignatureError').hide();
+
+            $w('#responsibleSignatureType').required = false;
+            $w('#responsibleEmailSignature').required = false;
+
+            // Sign Options
+            $w('#responsibleSign').collapse();
+            $w('#responsibleSign2').collapse();
+
+            $w('#responsibleSignError').hide();
+            $w('#responsibleSign2Error').hide();
+
+            $w('#responsibleSign').required = false;
+            $w('#responsibleSign2').required = false;
+
+            // Physical Signature
+            $w('#messagePhysicalSignature').expand();
+        }
+    })
+    // ===================== SAVE INFO
+    $w('#saveFormBackLater').onClick(() => {
+        saveInfo(false);
+    })
 }
 
+// =============================================================== ON CHANGE FUNCTIONS
+function f_rrProfessionalAchievementValidation() {
+    if ($w('#rrProfessionalAchievementValidation').value == 'Applicable') {
+        $w('#rrProfessionalAchievementsRep').expand();
+        $w('#rrAddProfessionalAchievement').expand();
+
+        $w('#rrProfessionalAchievement').required = true;
+    } else {
+        $w('#rrProfessionalAchievementsRep').collapse();
+        $w('#rrAddProfessionalAchievement').collapse();
+
+        $w('#rrProfessionalAchievement').required = false;
+    }
+}
+
+function f_rrPreviousPosition() {
+    if ($w('#rrPreviousPosition').value == 'Applicable') {
+        $w('#rrPositionTitle').expand();
+        $w('#rrDateJoinend').expand();
+        $w('#rrRolesResponsabilities').expand();
+
+        $w('#rrPositionTitle').required = true;
+        $w('#rrDateJoinend').required = true;
+        $w('#rrRolesResponsabilities').required = true;
+    } else {
+        $w('#rrPositionTitle').collapse();
+        $w('#rrDateJoinend').collapse();
+        $w('#rrRolesResponsabilities').collapse();
+
+        $w('#rrPositionTitleError').hide();
+        $w('#rrDateJoinendError').hide();
+        $w('#rrRolesResponsabilitiesError').hide();
+
+        $w('#rrPositionTitle').required = false;
+        $w('#rrDateJoinend').required = false;
+        $w('#rrRolesResponsabilities').required = false;
+    }
+}
+
+function f_apqEnrolled() {
+    if ($w('#apqEnrolled').value == 'Applicable') {
+        $w('#apqeAcademyInstitution').expand();
+        $w('#apqeCityCountry').expand();
+        $w('#apqeDatesAttended').expand();
+        $w('#apqeQualification').expand();
+        $w('#uploadEducationCertificates').expand();
+
+        $w('#apqeAcademyInstitution').required = true;
+        $w('#apqeCityCountry').required = true;
+        $w('#apqeDatesAttended').required = true;
+        $w('#apqeQualification').required = true;
+        $w('#uploadEducationCertificates').required = true;
+    } else {
+        $w('#apqeAcademyInstitution').collapse();
+        $w('#apqeCityCountry').collapse();
+        $w('#apqeDatesAttended').collapse();
+        $w('#apqeQualification').collapse();
+        $w('#uploadEducationCertificates').collapse();
+
+        $w('#apqeAcademyInstitutionError').hide();
+        $w('#apqeCityCountryError').hide();
+        $w('#apqeDatesAttendedError').hide();
+        $w('#apqeQualificationError').hide();
+        $w('#uploadEducationCertificatesError').hide();
+
+        $w('#apqeAcademyInstitution').required = false;
+        $w('#apqeCityCountry').required = false;
+        $w('#apqeDatesAttended').required = false;
+        $w('#apqeQualification').required = false;
+        $w('#uploadEducationCertificates').required = false;
+    }
+}
+
+function f_elpInternationallyRecognised() {
+    if ($w('#elpInternationallyRecognised').value == 'Yes') {
+        $w('#elpNameOfEnglishQualification').expand();
+        $w('#elpAccreditedEndorsedBy').expand();
+        $w('#elpCommencementCompletionDate').expand();
+        $w('#elpCertificateOfCompletion').expand();
+        $w('#uploadEnglishCertificate').expand();
+
+        $w('#elpNameOfEnglishQualification').required = true;
+        $w('#elpAccreditedEndorsedBy').required = true;
+        $w('#elpCommencementCompletionDate').required = true;
+        $w('#elpCertificateOfCompletion').required = true;
+        // $w('#uploadEnglishCertificate').required = true;
+    } else {
+        $w('#elpNameOfEnglishQualification').collapse();
+        $w('#elpAccreditedEndorsedBy').collapse();
+        $w('#elpCommencementCompletionDate').collapse();
+        $w('#elpCertificateOfCompletion').collapse();
+        $w('#uploadEnglishCertificate').collapse();
+
+        $w('#elpNameOfEnglishQualificationError').hide();
+        $w('#elpAccreditedEndorsedByError').hide();
+        $w('#elpCommencementCompletionDateError').hide();
+        $w('#elpCertificateOfCompletionError').hide();
+        // $w('#uploadEnglishCertificateError').hide();
+
+        $w('#elpNameOfEnglishQualification').required = false;
+        $w('#elpAccreditedEndorsedBy').required = false;
+        $w('#elpCommencementCompletionDate').required = false;
+        $w('#elpCertificateOfCompletion').required = false;
+        // $w('#uploadEnglishCertificate').required = false;
+    }
+}
+
+// CHANGE HTML RESPONSIBLE NAME
+function changeHtml() {
+    const name = $w('#responsibleNameDeclaration').value.trim();
+
+    // Replace placeholder {NAME} with the user's name underlined
+    const updatedHtml = responsibleDeclaration.replace('{NAME}', name ? `<u>${name}</u>` : '<u>________</u>');
+
+    // Set the new HTML to the element
+    $w('#dResponsibleDeclaration').html = updatedHtml;
+}
+
+// ADD REPEATER
 function addItemToRepeater(dataArray, repeaterId, defaultItem) {
     const newItem = {
         _id: (dataArray.length + 1).toString(),
@@ -485,19 +708,19 @@ function changeState(stateFunction) {
     else $w('#formStages').changeState('declarations');
 }
 
-function validationState(items) {
+function validationState(items, changeStateValidation) {
     try {
         const isValid = validation(items);
         if (!isValid) {
-            if (validationPersonalDetails == validationPersonalDetails) {
+            if (items == validationPersonalDetails) {
                 $w('#btCompleteProfile').expand();
             }
             throw new Error("Validation failed");
         }
 
         // If validation passes, proceed to next step
-        if (items == validactionDeclarations) saveInfo();
-        else changeState("Next");
+        if ((items == validactionDeclarations && $w('#applicantType').value == 'Independent – Applicant & their organization') || (items == validactionDeclarations2)) saveInfo(true);
+        else if (changeStateValidation) changeState("Next");
     } catch (error) {
         console.log("Validation error:", error.message);
         // Optional: show a global error message if needed
@@ -539,7 +762,7 @@ function validation(items) {
                 }
             } else if (input.type === "$w.UploadButton") {
                 if (input.value.length === 0) {
-                    errorMessage = "Please upload your digital signature";
+                    errorMessage = "Please upload your digital document";
                 }
             }
 
@@ -565,7 +788,7 @@ function validation(items) {
                     id.fieldsId.forEach(fieldId => {
                         const field = $item(fieldId);
 
-                        if (!field.value || field.value.trim() === "") {
+                        if (!field.value || (field.type !== "$w.UploadButton" && field.value.trim() === "") || (field.type === "$w.UploadButton" && field.value.length === 0)) {
                             isValid = false;
 
                             // Show Wix built-in invalid field UI
@@ -617,88 +840,279 @@ async function saveWorkExperienceInfo(repeaterId, fields, nameState, label, json
     });
 }
 
-async function saveInfo() {
-    $w('#formStages').changeState('loading');
-    let formData = {};
+// INSERT INFO
+function insertFormInfo(formInfo) {
+    autoSaveId = formInfo._id;
 
-    // Sort the state items based on their 'order' field
+    state.forEach((stateInfoToSet) => {
+        if (stateInfoToSet.state !== 'personalDetails' && stateInfoToSet.state !== 'declarations') {
+            stateInfoToSet.itemsArray.forEach(itemsState => {
+                if (typeof itemsState === 'string') {
+                    const itemBackenName = itemsState.replace('#', '');
+                    $w(itemsState).value = formInfo[itemBackenName];
+
+                    if ('f_rrProfessionalAchievementValidation'.includes(itemBackenName)) f_rrProfessionalAchievementValidation();
+                    if ('f_elpInternationallyRecognised'.includes(itemBackenName)) f_elpInternationallyRecognised();
+                    if ('f_rrPreviousPosition'.includes(itemBackenName)) f_rrPreviousPosition();
+                    if ('f_apqEnrolled'.includes(itemBackenName)) f_apqEnrolled();
+
+                } else {
+                    const targetRepeater = itemsState.repId;
+                    // Find the key where the repeater matches
+                    const foundKey = Object.keys(stateInfoToSet.itemObject).find(key => stateInfoToSet.itemObject[key].repeater === targetRepeater);
+                    // Optional: get the full object if needed
+                    const foundObject = foundKey ? stateInfoToSet.itemObject[foundKey] : null;
+                    // repeater 
+                    $w(foundObject.repeater).data = formInfo[foundObject.collectionField];
+                    // $w(foundObject.repeater).
+                    $w(foundObject.repeater).onItemReady(($item, itemData) => {
+                        itemsState.fieldsId.forEach((repItemId) => {
+                            const itemBackenName = repItemId.replace('#', '');
+                            $item(repItemId).value = itemData[itemBackenName];
+                        })
+                    })
+                }
+            })
+        }
+    })
+}
+
+async function saveInfo(saveValidation) {
+    let documents = [];
+    let formData = {};
+    let docCounter = 1; // for sequential IDs
+
+    // Helper to add files to documents array
+    function addFilesToDocuments(files) {
+        files.forEach(file => {
+            documents.push({
+                _id: String(docCounter++),
+                name: file.originalFileName,
+                url: file.fileUrl
+            });
+        });
+    }
+
+    if (saveValidation) {
+        $w('#formStages').changeState('loading');
+    } else {
+        $w('#saveFormBackLater').collapse();
+    }
+
     state.sort((a, b) => a.order - b.order);
 
     for (const stateItem of state) {
-        // Check if 'itemsArrayCheck' is true, and process 'itemsArray'
+        const excludedFields = [
+            '#signatureType', '#dSignatureFile', '#dSignatureFile2',
+            '#responsibleSignatureType', '#responsibleSign', '#responsibleSign2'
+        ];
+
         if (stateItem.itemsArrayCheck && Array.isArray(stateItem.itemsArray)) {
             stateItem.itemsArray.forEach((fieldId) => {
-                if (typeof fieldId === "string" && $w(fieldId).required && fieldId !== '#dSignatureFile' && fieldId !== '#dSignatureSign') {
-                    const key = fieldId.replace('#', ''); // Remove '#' symbol
-                    const $field = $w(fieldId); // Get the field element
+                if (typeof fieldId === 'string' && $w(fieldId).required && !excludedFields.includes(fieldId)) {
+                    const key = fieldId.replace('#', '');
+                    const $field = $w(fieldId);
 
-                    // Store the field value or source
-                    formData[key] = $field.value || $field.src || "";
-
+                    if ($field.value instanceof Date) {
+                        const yyyy = $field.value.getFullYear();
+                        const mm = String($field.value.getMonth() + 1).padStart(2, '0');
+                        const dd = String($field.value.getDate()).padStart(2, '0');
+                        formData[key] = `${yyyy}-${mm}-${dd}`;
+                    } else {
+                        formData[key] = $field.value || $field.src || "";
+                    }
                 } else if (typeof fieldId === 'object') {
                     const repId = fieldId.repId;
                     const itemObjectInfo = stateItem.itemObject;
                     const foundKey = Object.keys(itemObjectInfo).find(key => itemObjectInfo[key].repeater === repId);
-                    const itemObject = foundKey ? itemObjectInfo[foundKey] : null;
+                    const itemObject = itemObjectInfo[foundKey];
 
-                    // Extract the repeater data
-                    const repeaterData = $w(itemObject.repeater).data || [];
-                    const collectionField = itemObject.collectionField;
-                    const workExperienceTxT = itemObject.collectionFieldTxT;
-
-                    // Store the entire repeater data as a JSON structure
-                    formData[collectionField] = repeaterData;
-
-                    // String summary of the repeater data
-                    let repeaterSummary = itemObject.txtInfo;
-
-                    // Store the repeater summary text
-                    formData[workExperienceTxT] = repeaterSummary.trim();
+                    formData[itemObject.collectionField] = $w(itemObject.repeater).data || [];
+                    formData[itemObject.collectionFieldTxT] = itemObject.txtInfo.trim();
                 }
             });
         }
     }
 
-    const dSignatureFile = await $w('#dSignatureFile').uploadFiles()
-        .catch((uploadError) => console.log(uploadError));
-    formData.dSignatureFile = dSignatureFile[0].fileUrl;
+    documents.push({
+        _id: String(docCounter++),
+        name: "Passport",
+        url: currentMemberInfo.newField
+    });
 
-    // EMAIL MESSAGE
-    const date = new Date();
-    let resultString = `Form Name: ${$w('#title').text}\nName: ${$w('#firstName').value} ${$w('#surname').value}\nEmail: ${$w('#emailAddress').value}\nDate: ${date.toDateString()}`
-
-    // Add fixed fields
-    formData.personalDetails = item.personalDetails;
-    formData.rolesResponsibilities = item.rolesResponsibilities;
-    formData.workExperience = item.workExperience;
-    formData.academicProfessionalQualifications = item.academicProfessionalQualifications;
-    formData.englishLanguageProficiency = item.englishLanguageProficiency;
-    formData.itProficiency = item.itProficiency;
-
-    formData.title = item.title;
-    formData.emailMessage = resultString;
-    formData.memberId = memberId;
-    formData.image = $w('#image').src;
-    formData.status = 'Sent';
-    formData.additionalInformation = false;
-    formData.sendEmailAdditionalInformation = false;
-    formData.dApplicantDeclaration = $w('#dApplicantDeclaration').html;
-    formData.dResponsibleDeclaration = item.responsibleDeclaration;
-
-    console.log(formData)
-
-    // Insert data into collection
-    insertCollection('Formssubmitted', formData).then((itemCollectionId) => {
-        const json = {
-            formName: item.title,
-            name: $w('#firstName').value,
-            data: resultString,
-            urlWix: 'https://manage.wix.com/dashboard/181a573b-180a-484b-ad92-022b65cd0fb8/admin-pages/admin?referralInfo=viewerNavigation',
+    // Signer
+    if ($w('#signatureType').value === 'Digital signature') {
+        const signerFile = await $w('#dSignatureFile').uploadFiles().catch(console.log);
+        if (signerFile?.length) {
+            formData.dSignatureFile = signerFile[0].fileUrl;
+            // addFilesToDocuments(signerFile);
         }
-        emailForms(json);
-        $w('#formStages').changeState('thankYou');
-    })
+    } else {
+        formData.dSignatureFile = $w('#dSignatureFile2').value;
+    }
 
-    console.log("formData:", formData);
-    console.log("Final String:\n", resultString);
+    // Responsible
+    if ($w('#responsibleSignatureOption').value === 'Digital Signature') {
+        if ($w('#responsibleSignatureType').value === 'Digital signature') {
+            const responsibleFile = await $w('#responsibleSign').uploadFiles().catch(console.log);
+            if (responsibleFile?.length) {
+                formData.responsibleSignature = responsibleFile[0].fileUrl;
+                // addFilesToDocuments(responsibleFile);
+            }
+        } else {
+            formData.responsibleSignature = $w('#responsibleSign2').value;
+        }
+    } else if ($w('#responsibleSignatureOption').value === 'Email to director') {
+        formData.passwordEmailSignature = await generatePassword();
+    }
+
+    formData.passwordAdmin = await generatePassword();
+
+    // Upload fields
+    const uploadAndCollect = async (selector, key) => {
+        const files = await $w(selector).uploadFiles().catch(console.log);
+        if (files?.length) {
+            const urls = files.map(f => f.fileUrl);
+            formData[key] = urls;
+            addFilesToDocuments(files);
+        }
+    };
+
+    if (saveValidation) {
+        if ($w('#uploadEducationCertificates').value.length > 0) {
+            await uploadAndCollect('#uploadEducationCertificates', 'uploadEducationCertificates');
+        }
+        if ($w('#uploadEnglishCertificate').value.length > 0) {
+            await uploadAndCollect('#uploadEnglishCertificate', 'uploadEnglishCertificate');
+        }
+    }
+
+    // Repeater upload
+    let repeaterUploadPromises = [];
+    $w('#apqRepAcademicProfessional').forEachItem(($item) => {
+        if (saveValidation) {
+            const promise = $item('#apqUpdateAcademicCertificate').uploadFiles()
+                .then(files => {
+                    addFilesToDocuments(files);
+                })
+                .catch(err => console.log("Repeater upload error:", err));
+            repeaterUploadPromises.push(promise);
+        }
+    });
+    await Promise.all(repeaterUploadPromises);
+
+    // Sort documents alphabetically
+    documents.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Email string
+    const date = new Date();
+    const resultString = `Form Name: ${$w('#title').text}
+Name: ${$w('#firstName').value} ${$w('#surname').value}
+Email: ${$w('#emailAddress').value}
+Date: ${date.toDateString()}`;
+
+    let status = 'Sent';
+    if ($w('#responsibleSignatureOption').value !== 'Digital Signature') {
+        status = 'Signature pending';
+    }
+
+    // Add fixed info
+    Object.assign(formData, {
+        personalDetails: item.personalDetails,
+        rolesResponsibilities: item.rolesResponsibilities,
+        workExperience: item.workExperience,
+        academicProfessionalQualifications: item.academicProfessionalQualifications,
+        englishLanguageProficiency: item.englishLanguageProficiency,
+        itProficiency: item.itProficiency,
+
+        title: item.title,
+        titlePersonalDetails: item.titlePersonalDetails,
+        titleRolesResponsibilities: item.titleRolesResponsibilities,
+        titleWorkExperience: item.titleWorkExperience,
+        titleAcademicProfessionalQualifications: item.titleAcademicProfessionalQualifications,
+        titleEnglishLanguageProficiency: item.titleEnglishLanguageProficiency,
+        titleItProficiency: item.titleItProficiency,
+        titleDeclaration: item.titleDeclaration,
+
+        emailMessage: resultString,
+        memberId: memberId,
+        image: $w('#image').src,
+        status,
+        additionalInformation: false,
+        sendEmailAdditionalInformation: false,
+        dApplicantDeclaration: $w('#dApplicantDeclaration').html,
+        dResponsibleDeclaration: $w('#dResponsibleDeclaration').html,
+        documents
+    });
+
+    if ($w('#applicantType').value == 'Independent – Applicant & their organization') {
+        formData.responsibleOk = true;
+        formData.responsibleSignatureOption = 'Not applicable';
+        formData.responsibleNameDeclaration = 'Not applicable';
+        
+        const yyyy = $w('#responsibleDateDeclaration').value.getFullYear();
+        const mm = String($w('#responsibleDateDeclaration').value.getMonth() + 1).padStart(2, '0');
+        const dd = String($w('#responsibleDateDeclaration').value.getDate()).padStart(2, '0');
+        formData.responsibleDateDeclaration = `${yyyy}-${mm}-${dd}`;
+    }
+
+    if ($w('#responsibleSignatureOption').value == 'Digital Signature') {
+        formData.responsibleOk = true;
+    }
+
+    // Save to collection
+    if (saveValidation) {
+        $w('#saveFormBackLater').collapse();
+        insertCollection('Formssubmitted', formData).then(async (itemCollectionId) => {
+            if ($w('#applicantType').value == 'Independent – Applicant & their organization' || $w('#responsibleSignatureOption').value == 'Digital Signature') {
+                emailForms({
+                    formName: item.title,
+                    name: $w('#firstName').value,
+                    data: resultString,
+                    urlAdmin: `${wixLocationFrontend.baseUrl}/admin?formId=${itemCollectionId}`,
+                    urlApplication: `${wixLocationFrontend.baseUrl}/signature?formId=${itemCollectionId}&adminPass=${formData.passwordAdmin}`,
+                });
+
+                $w('#formStages').changeState('thankYou');
+
+            } else if ($w('#responsibleSignatureOption').value == 'Email to director') {
+                const urlWix = `${wixLocationFrontend.baseUrl}/signature?formId=${itemCollectionId}&signaturePass=${formData.passwordEmailSignature}`;
+                emailSignRequired(formData, urlWix);
+
+                $w('#formStages').changeState('thankYou2');
+            } else if ($w('#responsibleSignatureOption').value == 'Physical Signature') {
+                // ===================== Code for send pdf
+
+                $w('#formStages').changeState('thankYou3');
+            }
+
+            if (autoSaveId) await deleteItemFromCollection('Formssubmitted', autoSaveId);
+
+        });
+    } else {
+        $w('#loadingAutoSave').expand();
+        await getFormInfoAfterSave(item.title, memberId, 'delete');
+        formData.autoSaveInfo = true;
+
+        insertCollection('Formssubmitted', formData).then(() => {
+            $w('#loadingAutoSave').collapse();
+            $w('#checkAutoCheck').expand();
+            setTimeout(() => {
+                $w('#checkAutoCheck').collapse();
+                $w('#saveFormBackLater').expand();
+            }, 5000);
+        });
+    }
+}
+
+function generatePassword(length = 8) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        password += chars[randomIndex];
+    }
+
+    return password;
 }
