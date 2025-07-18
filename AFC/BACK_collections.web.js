@@ -1,4 +1,5 @@
 import { Permissions, webMethod } from "wix-web-module";
+import { getContactInfo } from 'backend/functions.web.js';
 import wixData from 'wix-data';
 
 const wixDataOptions = { "suppressAuth": true, "suppressHooks": true };
@@ -42,6 +43,20 @@ export const generalQuery2 = webMethod(Permissions.Anyone, async (collectionId, 
     return allItems;
 })
 
+// Capitalizes the first letter of a word
+export const getFormInfoAfterSave = webMethod(Permissions.Anyone, async (formId, memberId, type) => {
+    return await wixData.query('Formssubmitted').eq('title', formId).eq('memberId', memberId).eq('autoSaveInfo', true).find().then(async (result) => {
+        if (result.items.length > 0 && type == 'delete') {
+            await wixData.remove('Formssubmitted', result.items[0]._id);
+            return 'Ok';
+        } else if (result.items.length > 0 && type == 'getInfo') {
+            return result.items[0];
+        } else {
+            return false
+        }
+    })
+})
+
 export const getDropdownOptions = webMethod(Permissions.Anyone, async (collectionId, field) => {
     const collectionInfo = await getCollection(collectionId);
     if (!Array.isArray(collectionInfo)) return [];
@@ -63,11 +78,11 @@ export const getDropdownOptions = webMethod(Permissions.Anyone, async (collectio
 })
 // =========================================================================== UPDATE
 export const updateCollection = webMethod(Permissions.Anyone, async (collectionId, json) => {
-    await wixData.update(collectionId, json, wixDataOptions)
+    return await wixData.update(collectionId, json, wixDataOptions)
 });
 // =========================================================================== DELETE
 export const deleteItemFromCollection = webMethod(Permissions.Anyone, async (collectionId, itemId) => {
-    await wixData.remove(collectionId, itemId)
+    return await wixData.remove(collectionId, itemId, wixDataOptions)
         .then((result) => { console.log(result); })
         .catch((err) => { console.log(err); });
 });

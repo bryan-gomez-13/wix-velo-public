@@ -1,8 +1,10 @@
 import { insertCollection, getFormInfoAfterSave, deleteItemFromCollection } from 'backend/collections.web.js';
+import { uploadBase64Image } from 'backend/functions.web.js';
 import wixLocationFrontend from 'wix-location-frontend';
 import { currentMember } from "wix-members-frontend";
-import { emailForms, emailSignRequired } from 'backend/email.web.js';
+import { emailForms, emailSignRequired, emailPhysicalSignature } from 'backend/email.web.js';
 import wixData from 'wix-data';
+import { generatePDF } from 'backend/apiIntegration.web.js';
 
 let stateOrder = 1,
     state = [],
@@ -507,7 +509,7 @@ function init() {
             }
 
             // Physical Signature
-            $w('#messagePhysicalSignature').collapse();
+            // $w('#messagePhysicalSignature').collapse();
         } else if ($w('#responsibleSignatureOption').value == 'Email to director') {
             //Email
             $w('#responsibleSignatureType').collapse();
@@ -530,7 +532,7 @@ function init() {
             $w('#responsibleSign2').required = false;
 
             // Physical Signature
-            $w('#messagePhysicalSignature').collapse();
+            // $w('#messagePhysicalSignature').collapse();
         } else if ($w('#responsibleSignatureOption').value == 'Physical Signature') {
             //Email
             $w('#responsibleSignatureType').collapse();
@@ -553,7 +555,7 @@ function init() {
             $w('#responsibleSign2').required = false;
 
             // Physical Signature
-            $w('#messagePhysicalSignature').expand();
+            // $w('#messagePhysicalSignature').expand();
         }
     })
     // ===================== SAVE INFO
@@ -674,7 +676,7 @@ function changeHtml() {
     const name = $w('#responsibleNameDeclaration').value.trim();
 
     // Replace placeholder {NAME} with the user's name underlined
-    const updatedHtml = responsibleDeclaration.replace('{NAME}', name ? `<u>${name}</u>` : '<u>________</u>');
+    const updatedHtml = responsibleDeclaration.replace('{NAME}', name ? `<u>${name}</u>` : '<u>__________</u>');
 
     // Set the new HTML to the element
     $w('#dResponsibleDeclaration').html = updatedHtml;
@@ -881,6 +883,7 @@ async function saveInfo(saveValidation) {
     let documents = [];
     let formData = {};
     let docCounter = 1; // for sequential IDs
+    $w('#saveFormBackLater').collapse();
 
     // Helper to add files to documents array
     function addFilesToDocuments(files) {
@@ -948,7 +951,8 @@ async function saveInfo(saveValidation) {
             // addFilesToDocuments(signerFile);
         }
     } else {
-        formData.dSignatureFile = $w('#dSignatureFile2').value;
+        const base64 = await uploadBase64Image($w('#dSignatureFile2').value, `Sign 1 ${formData.passportNo}`);
+        formData.dSignatureFile = base64;
     }
 
     // Responsible
@@ -960,10 +964,12 @@ async function saveInfo(saveValidation) {
                 // addFilesToDocuments(responsibleFile);
             }
         } else {
-            formData.responsibleSignature = $w('#responsibleSign2').value;
+            const base64 = await uploadBase64Image($w('#responsibleSign2').value, `Sign 2 ${$w('#responsibleNameDeclaration').value}`);
+            formData.responsibleSignature = base64;
         }
-    } else if ($w('#responsibleSignatureOption').value === 'Email to director') {
+    } else {
         formData.passwordEmailSignature = await generatePassword();
+        if ($w('#responsibleSignatureOption').value === 'Physical Signature') formData.responsibleSignature = '';
     }
 
     formData.passwordAdmin = await generatePassword();
@@ -1001,9 +1007,6 @@ async function saveInfo(saveValidation) {
     });
     await Promise.all(repeaterUploadPromises);
 
-    // Sort documents alphabetically
-    documents.sort((a, b) => a.name.localeCompare(b.name));
-
     // Email string
     const date = new Date();
     const resultString = `Form Name: ${$w('#title').text}
@@ -1036,20 +1039,19 @@ Date: ${date.toDateString()}`;
 
         emailMessage: resultString,
         memberId: memberId,
-        image: $w('#image').src,
+        image: currentMemberInfo.image,
         status,
         additionalInformation: false,
         sendEmailAdditionalInformation: false,
         dApplicantDeclaration: $w('#dApplicantDeclaration').html,
         dResponsibleDeclaration: $w('#dResponsibleDeclaration').html,
-        documents
     });
 
     if ($w('#applicantType').value == 'Independent – Applicant & their organization') {
         formData.responsibleOk = true;
         formData.responsibleSignatureOption = 'Not applicable';
         formData.responsibleNameDeclaration = 'Not applicable';
-        
+
         const yyyy = $w('#responsibleDateDeclaration').value.getFullYear();
         const mm = String($w('#responsibleDateDeclaration').value.getMonth() + 1).padStart(2, '0');
         const dd = String($w('#responsibleDateDeclaration').value.getDate()).padStart(2, '0');
@@ -1058,11 +1060,33 @@ Date: ${date.toDateString()}`;
 
     if ($w('#responsibleSignatureOption').value == 'Digital Signature') {
         formData.responsibleOk = true;
+    } else if ($w('#responsibleSignatureOption').value == 'Physical Signature') {
+        // Replace placeholder {NAME} with the user's name underlined
+        const updatedHtml = item.responsibleDeclaration.replace('{NAME}', '______________________________________________________');
+
+        formData.dResponsibleDeclaration = updatedHtml;
+        formData.responsibleNameDeclaration = '______________________________________________________';
+        formData.responsibleDateDeclaration = '______________________________________________________';
     }
 
     // Save to collection
     if (saveValidation) {
-        $w('#saveFormBackLater').collapse();
+        if ($w('#applicantType').value == 'Independent – Applicant & their organization' || $w('#responsibleSignatureOption').value == 'Digital Signature') {
+            // Create PDF
+            const applicationPDF = await generatePDF(formData);
+            formData.pdf = applicationPDF;
+
+            documents.push({
+                _id: String(docCounter++),
+                name: `Application - ${item.title}`,
+                url: applicationPDF
+            });
+        }
+
+        // Sort documents alphabetically
+        documents.sort((a, b) => a.name.localeCompare(b.name));
+        formData.documents = documents;
+        
         insertCollection('Formssubmitted', formData).then(async (itemCollectionId) => {
             if ($w('#applicantType').value == 'Independent – Applicant & their organization' || $w('#responsibleSignatureOption').value == 'Digital Signature') {
                 emailForms({
@@ -1082,6 +1106,8 @@ Date: ${date.toDateString()}`;
                 $w('#formStages').changeState('thankYou2');
             } else if ($w('#responsibleSignatureOption').value == 'Physical Signature') {
                 // ===================== Code for send pdf
+                const applicationPDF = `${wixLocationFrontend.baseUrl}/signature?formId=${itemCollectionId}&signaturePass=${formData.passwordEmailSignature}`;
+                emailPhysicalSignature(formData, applicationPDF, wixLocationFrontend.baseUrl);
 
                 $w('#formStages').changeState('thankYou3');
             }

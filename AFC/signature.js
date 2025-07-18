@@ -1,13 +1,19 @@
  import { generalQuery, updateCollection } from 'backend/collections.web.js';
+ import { uploadBase64Image } from 'backend/functions.web.js';
  import wixLocationFrontend from "wix-location-frontend";
  import { emailForms } from 'backend/email.web.js';
  import wixData from 'wix-data';
+ import { generatePDF } from 'backend/apiIntegration.web.js';
 
  var itemSubmissionInfo, label, value, responsibleDeclaration;
  var itemsValidations = [
      '#responsibleNameDeclaration',
      '#responsibleSignatureFile',
      '#responsibleSignatureSign',
+ ]
+
+ var itemValidationPhysicalSignature = [
+     '#uploadFile'
  ]
 
  $w.onReady(function () {
@@ -29,12 +35,13 @@
 
  // ==================================================== INIT
  function init() {
+     // UPLOAD SIGNATURE
      $w('#btUpdateSubmissionInfo').onClick(async () => {
          $w('#btUpdateSubmissionInfo').hide();
          $w('#loadingSaveSubmission').show();
 
          try {
-             const isValid = validation();
+             const isValid = validation(itemsValidations);
              if (!isValid) {
                  throw new Error("Validation failed");
              }
@@ -45,6 +52,26 @@
              // Optional: show a global error message if needed
              $w('#btUpdateSubmissionInfo').show();
              $w('#loadingSaveSubmission').hide();
+         }
+     })
+
+     // UPLOAD PHYSICAL
+     $w('#btUploadPhysicalFile').onClick(async () => {
+         $w('#btUploadPhysicalFile').hide();
+         $w('#loadingPhysicalFile').show();
+
+         try {
+             const isValid = validation(itemValidationPhysicalSignature);
+             if (!isValid) {
+                 throw new Error("Validation failed");
+             }
+
+             saveInfo();
+         } catch (error) {
+             console.log("Validation error:", error.message);
+             // Optional: show a global error message if needed
+             $w('#btUploadPhysicalFile').show();
+             $w('#loadingPhysicalFile').hide();
          }
      })
 
@@ -75,23 +102,53 @@
 
  async function saveInfo() {
      let dataSubmission = $w('#dataSubmissionItemInfo').getCurrentItem();
-     dataSubmission.responsibleNameDeclaration = $w('#responsibleNameDeclaration').value;
-     dataSubmission.responsibleOk = true;
 
-     if ($w('#signatureType').value == 'Digital signature') {
-         if ($w('#responsibleSignatureFile').value.length > 0) {
-             const dSignatureFile = await $w('#responsibleSignatureFile').uploadFiles()
-                 .catch((uploadError) => console.log(uploadError));
-             dataSubmission.responsibleSignature = dSignatureFile[0].fileUrl;
-         }
+     if (dataSubmission.responsibleSignatureOption == 'Physical Signature') {
+         const pdf = await $w('#uploadFile').uploadFiles()
+             .catch((uploadError) => console.log(uploadError));
+         dataSubmission.pdf = pdf[0].fileUrl;
+
+         dataSubmission.documents.forEach(item => {
+             if (item.name.includes("Application -")) {
+                 item.url = pdf[0].fileUrl;
+             }
+         });
      } else {
-         dataSubmission.responsibleSignature = $w('#responsibleSignatureSign').value;
+         dataSubmission.responsibleNameDeclaration = $w('#responsibleNameDeclaration').value;
+
+         if ($w('#signatureType').value == 'Digital signature') {
+             if ($w('#responsibleSignatureFile').value.length > 0) {
+                 const dSignatureFile = await $w('#responsibleSignatureFile').uploadFiles()
+                     .catch((uploadError) => console.log(uploadError));
+                 dataSubmission.responsibleSignature = dSignatureFile[0].fileUrl;
+             }
+         } else {
+             const base64 = await uploadBase64Image($w('#responsibleSignatureSign').value, `Sign 2 ${dataSubmission.responsibleNameDeclaration}`);
+             dataSubmission.responsibleSignature = base64;
+         }
+
+         const now = new Date();
+         let formattedDate = now.toISOString().split('T')[0];
+         dataSubmission.responsibleDateDeclaration = formattedDate;
+
+         // Create PDF
+         const applicationPDF = await generatePDF(dataSubmission);
+         dataSubmission.pdf = applicationPDF;
+
+         dataSubmission.documents.push({
+             _id: String((dataSubmission.documents.length + 1)),
+             name: `Application - ${dataSubmission.title}`,
+             url: applicationPDF
+         });
+
+         // Sort documents alphabetically
+         dataSubmission.documents.sort((a, b) => a.name.localeCompare(b.name));
      }
 
-     const now = new Date();
-     let formattedDate = now.toISOString().split('T')[0];
-     dataSubmission.responsibleDateDeclaration = formattedDate;
+     dataSubmission.responsibleOk = true;
      dataSubmission.status = 'Sent';
+
+     console.log(1, 'formData', dataSubmission)
 
      await updateCollection('Formssubmitted', dataSubmission)
 
@@ -136,23 +193,25 @@
                      $w('#aiRep').collapse();
                  }
 
-                 if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
-                 else $w('#boxRoles').collapse();
+                  if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
+                  else $w('#boxRoles').collapse();
 
-                 if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
-                 else $w('#boxWorkExperience').collapse();
+                  if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
+                  else $w('#boxWorkExperience').collapse();
 
-                 if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
-                 else $w('#boxAcademic').collapse();
+                  if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
+                  else $w('#boxAcademic').collapse();
 
-                 if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
-                 else $w('#boxEnglish').collapse();
+                  if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
+                  else $w('#boxEnglish').collapse();
 
-                 if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
-                 else $w('#boxItProfiency').collapse();
+                  if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
+                  else $w('#boxItProfiency').collapse();
 
-                 if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true) $w('#gDeclaration2').expand(), $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
-                 else $w('#gDeclaration2').collapse(), $w('#gDeclaration1').expand(), $w('#btUpdateSubmissionInfo').expand();
+                 //  if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true) $w('#gDeclaration2').expand(), $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
+                 if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true) $w('#gDeclaration2').expand(), $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse(), $w('#boxPhysicalDocument').collapse();
+                 else if (itemSubmissionInfo.responsibleSignatureOption == 'Email to director') $w('#boxDeclaration').expand(), $w('#gDeclaration2').collapse(), $w('#boxPhysicalDocument').collapse(), $w('#gDeclaration1').expand(), $w('#btUpdateSubmissionInfo').expand();
+                 else if (itemSubmissionInfo.responsibleSignatureOption == 'Physical Signature') $w('#boxPhysicalDocument').expand();
 
                  if (label == 'passwordAdmin') $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
 
@@ -185,10 +244,10 @@
      });
  }
 
- function validation() {
+ function validation(itemsValidationsID) {
      let isValid = true;
 
-     itemsValidations.forEach(async (id) => {
+     itemsValidationsID.forEach(async (id) => {
          if (typeof id === "string" && $w(id).required) {
              const input = $w(id);
              const errorTextId = `${id}Error`; // Error text field under each input

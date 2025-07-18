@@ -1,6 +1,7 @@
 import { Permissions, webMethod } from "wix-web-module";
 import { getCollection, generalQuery2, updateCollection } from 'backend/collections.web.js';
 import { triggeredEmails } from "wix-crm-backend";
+import { getEmail } from 'backend/functions.web.js';
 
 export const emailForms = webMethod(Permissions.Anyone, async (json) => {
     const emailNotifications = (await getCollection('FormNotifications')).map(item => item.memberId);
@@ -11,9 +12,59 @@ export const emailForms = webMethod(Permissions.Anyone, async (json) => {
             formName: json.formName,
             name: json.name,
             data: json.data,
-            urlWix: json.urlWix
+            urlAdmin: json.urlAdmin,
+            urlApplication: json.urlApplication
         }
     };
+
+    await sendEmail(emailNotifications, emailId, options)
+    return true;
+});
+
+export const emailSignRequired = webMethod(Permissions.Anyone, async (json, urlWix) => {
+    const emailId = 'documentSignRequired';
+    const emailNotifications = await getEmail(json)
+
+    const options = {
+        variables: {
+            signName: json.responsibleNameDeclaration,
+            urlSignDocument: urlWix
+        }
+    };
+
+    await sendEmail([emailNotifications], emailId, options)
+
+    triggeredEmails.emailContact(emailId, emailNotifications, options)
+        .then(() => { console.log(`Email sent to member: ${emailNotifications}`); })
+        .catch((error) => { console.error(`Error sending email to member ${emailNotifications}:`, error); });
+    return true;
+});
+
+export const emailPhysicalSignature = webMethod(Permissions.Anyone, async (json, applicationPDF, baseUrl) => {
+    const emailId = 'downloadDocument';
+    const emailNotifications = json.memberId;
+
+    const options = {
+        variables: {
+            linkUploadDocument: applicationPDF,
+            applicationPDF: json.pdf,
+            baseUrl: baseUrl
+        }
+    };
+
+    await sendEmail([emailNotifications], emailId, options)
+
+    // triggeredEmails.emailContact(emailId, emailNotifications, options)
+    //     .then(() => { console.log(`Email sent to member: ${emailNotifications}`); })
+    //     .catch((error) => { console.error(`Error sending email to member ${emailNotifications}:`, error); });
+    return true;
+});
+
+export const sendEmailSignature = webMethod(Permissions.Anyone, async (urlWix) => {
+    const emailNotifications = (await getCollection('FormNotifications')).map(item => item.memberId);
+    const emailId = 'applicationSigned';
+
+    const options = { variables: { urlWix: urlWix } };
 
     await sendEmail(emailNotifications, emailId, options)
     return true;
@@ -49,7 +100,8 @@ export const emailAdditionalInformationAdmin = webMethod(Permissions.Anyone, asy
             variables: {
                 userName: json.userName,
                 email: json.email,
-                formName: json.formName
+                formName: json.formName,
+                urlWix: json.urlWix
             }
         };
 
