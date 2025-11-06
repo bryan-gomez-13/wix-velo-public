@@ -1,6 +1,8 @@
 import { Permissions, webMethod } from "wix-web-module";
 import wixData from 'wix-data';
 
+const wixDataOptions = { suppressAuth: true, suppressHooks: true };
+
 // ========================================================== CREATE
 // ========================================================== READ
 export const getCollection = webMethod(Permissions.Anyone, async (collectionId) => {
@@ -48,7 +50,7 @@ export const getDropdownJobsOptions_String = webMethod(Permissions.Anyone, async
     return [{ label: "All", value: "All" }, ...options];
 });
 
-export const getDropdownJobsOptions_Array = webMethod(Permissions.Anyone, async (collectionId, field) => {
+export const getDropdownOptions_Array = webMethod(Permissions.Anyone, async (collectionId, field) => {
     // Fetch the initial batch of items
     let results = await wixData.query(collectionId).limit(100).find();
     let allItems = results.items;
@@ -116,6 +118,38 @@ export const getDropdownJobsOptions_Repeater = webMethod(Permissions.Anyone, asy
 
     // Add "All" option at the beginning
     return [{ label: "All Posts", value: "All Posts", _id: "allPosts" }, ...options];
+});
+
+export const getDropdownJobsOptions_Repeater_with_UniqueReference = webMethod(Permissions.Anyone, async (collectionId, collectionToSearch, field) => {
+    // Fetch the initial batch of items
+    let results = await wixData.query(collectionId).limit(100).find();
+    let allItems = results.items;
+
+    // Continue fetching the next pages if there are more results
+    while (results.hasNext()) {
+        results = await results.next();
+        allItems = allItems.concat(results.items);
+    }
+
+    // Extract series values
+    const idReferences = allItems.map(item => item[field]);
+
+    // Keep only unique values
+    const uniqueReferences = [...new Set(idReferences)];
+
+    // Fetch all unique items in parallel
+    const itemsRepeater = await Promise.all(
+        uniqueReferences.map(async (item) => {
+            const result = await generalQuery(collectionToSearch, '_id', item);
+            return result[0]; // assuming result is an array
+        })
+    );
+
+    // Sort the results by title in ascending order
+    itemsRepeater.sort((a, b) => a.title.localeCompare(b.title));
+
+    return itemsRepeater;
+
 });
 // ========================================================== UPDATE
 // ========================================================== DELETE

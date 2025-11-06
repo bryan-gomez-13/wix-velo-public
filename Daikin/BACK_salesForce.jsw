@@ -1,0 +1,70 @@
+//import { createRecords } from '@velo/salesforce-integration-backend';
+import { createRecords } from "backend/salesforce.js";
+import { getSecret } from "wix-secrets-backend";
+import wixData from "wix-data";
+import wixCaptcha from "wix-captcha-backend";
+
+export async function createRecordsWrapper(record, agree) {
+    const {
+        FirstName,
+        LastName,
+        Phone,
+        Email,
+        Street,
+        City,
+        PostalCode,
+        StateCode,
+        CountryCode,
+        LeadSource,
+        Status,
+        InstallationType__c,
+        Comments__c,
+        RecordTypeId,
+    } = record;
+    try {
+        try {
+            const res = await createRecords("Lead", record);
+            record.agreeRecibePromotion = agree;
+            await wixData
+                .insert("SalesForce", record, {
+                    suppressAuth: true,
+                    suppressHooks: true,
+                })
+                .catch((err) => console.log(err));
+            return res.success;
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    } catch (validationError) {
+        return Promise.reject(validationError.toString());
+    }
+}
+
+// ============================================================================
+function validateName(name) {
+    const regex = new RegExp("^[A-Za-z\\s\\d-]+$");
+    if (!regex.test(name)) {
+        throw new Error(
+            `Provided name must only contains English letters (got: ${name})`
+        );
+    }
+    return true;
+}
+
+function validatePhoneNumber(phone) {
+    const regex = new RegExp("^[0-9]+$");
+    if (!regex.test(phone)) {
+        throw new Error(`Provided phone must only contains digits (got: ${phone})`);
+    }
+    return true;
+}
+
+export async function test() {
+    const sfAccountSecretStr = await getSecret("velo-salesforce-credentials");
+    const sfAccountSecret = JSON.parse(sfAccountSecretStr);
+    console.log(
+        sfAccountSecret.username,
+        sfAccountSecret.password,
+        sfAccountSecret.token
+    );
+}

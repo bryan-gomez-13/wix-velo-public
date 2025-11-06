@@ -1,10 +1,10 @@
- import { getDropdownOptions, updateCollection, insertCollection, bulkInsertCollection, deleteItemFromCollection } from 'backend/collections.web.js';
+ import { getDropdownOptions, updateCollection, updateStatus, getDropdownOptionsWithId, insertCollection, bulkInsertCollection, deleteItemFromCollection } from 'backend/collections.web.js';
  import { emailAdditionalInformation } from 'backend/email.web.js';
  import wixLocationFrontend from "wix-location-frontend";
  import { currentMember } from "wix-members-frontend";
  import wixData from 'wix-data';
 
- var itemSubmissionInfo, adminInfo, infoSignatures;
+ var itemSubmissionInfo, adminInfo, infoSignatures, memberSubmissionInfo, memberInfoIdToSearch;
 
  $w.onReady(function () {
      getMember();
@@ -26,14 +26,28 @@
      $w('#subSearch').onInput(() => filterSubmissions());
      $w('#subDropForms').onChange(() => filterSubmissions());
      $w('#subStatus').onChange(() => filterSubmissions());
+     $w('#subDate').onChange(() => filterSubmissions());
+     $w('#subSortByDate').onChange(() => filterSubmissions());
+     $w('#subClearFilter').onClick(() => {
+         $w('#subSearch').value = '';
+         $w('#subDropForms').value = '';
+         $w('#subStatus').value = '';
+         $w('#subDate').value = null;
+         $w('#subSortByDate').value = '';
+
+         filterSubmissions();
+     });
 
      $w('#repSubmissions').onItemReady(($item, itemData) => {
          $item('#subName').text = `${itemData.firstName} ${itemData.surname}`;
-         $item('#status').text = `Status: ${itemData.status}`;
+         //  $item('#status').text = `Status: ${itemData.status}`;
          $item('#boxSubmissions').onClick(() => submissionInfo(itemData._id));
      })
 
      // STATE SUBMISSIONS INFO
+     getDropdownOptionsWithId("Form", 'title').then((memProgramOptions) => {
+         $w('#memProgramApplication').options = memProgramOptions;
+     })
      $w('#btBackSubmissionInfo').onClick(() => $w('#adminStates').changeState('Submissions'));
      $w('#dataSubmissionItemInfo').onAfterSave(() => $w('#dataFormSubmissions').refresh());
      $w('#btEmail').onClick(() => changeStateSendEmail());
@@ -60,12 +74,19 @@
          if (!dataSubmission.history) dataSubmission.history = [json];
          else dataSubmission.history.push(json);
 
-         await updateCollection('Formssubmitted', dataSubmission)
+         // Run both updates in parallel
+         console.log('dataSubmission', dataSubmission)
+         await Promise.all([
+             updateStatus(dataSubmission),
+             updateCollection('Formssubmitted', dataSubmission)
+         ]);
 
          submissionInfo(dataSubmission._id);
          $w('#loadingSaveSubmission').hide()
          $w('#checkSubmission').show();
          $w('#btUpdateSubmissionInfo').show();
+
+         $w('#dataFormSubmissions').refresh();
 
          setInterval(() => {
              $w('#checkSubmission').hide();
@@ -79,11 +100,18 @@
      $w('#seBtSendEmail').onClick(() => sendEmailToGetAdditionalInfo());
 
      // STATE MEMBERS
+     getDropdownOptions("Form", "title").then((formsOptions) => {
+         $w('#mFormOptions').options = formsOptions;
+     })
+
      $w('#mSearch').onInput(() => filterMembers());
      $w('#mRepMembers').onItemReady(($item, itemData) => {
          $item('#memName').text = `${itemData.firstName} ${itemData.surname}`;
          $item('#boxMember').onClick(() => memberInfo(itemData.memberId));
      })
+
+     $w('#mFormOptions').onChange(() => filterMembers());
+     $w('#mStatus').onChange(() => filterMembers());
 
      // STATE MEMBERS INFO
      $w('#mBack').onClick(() => $w('#adminStates').changeState('Members'));
@@ -91,6 +119,31 @@
      $w('#memRepDocuments').onItemReady(($item, itemData) => {
          $item('#deleteCertificate').onClick(() => {
              deleteItemFromCollection('ACEProgrammedigitalcertificate', itemData._id).then(() => { refreshMemberDocuments(); })
+         })
+     })
+
+     $w('#mBtMoreInfo').onClick((event) => {
+         let $item = $w.at(event.context);
+         const itemId = event.context.itemId;
+         const itemData = $w('#mRepSubmissions').data.find(item => item._id == itemId)
+
+         $w('#btMembers').enable();
+         $w('#btSubmissions').disable();
+         submissionInfo(itemData._id)
+     });
+
+     $w('#mBtRelease').onClick((event) => {
+         let $item = $w.at(event.context);
+         const itemId = event.context.itemId;
+         const newHistoryForms = $w('#mRepSubmissions').data.filter(itemToRealease => itemToRealease._id !== itemId)
+
+         memberSubmissionInfo.forms = newHistoryForms;
+         memberSubmissionInfo.formsString = JSON.stringify(newHistoryForms);
+
+         console.log(memberSubmissionInfo)
+
+         updateCollection('Members', memberSubmissionInfo).then(() => {
+             memberInfo(memberInfoIdToSearch);
          })
      })
 
@@ -126,15 +179,26 @@
  // ==================================================== STATE SUBMISSIONS
  function filterSubmissions() {
      let filter = wixData.filter();
+     let sort;
      const search = $w('#subSearch').value;
+     const subDate = $w('#subDate').value;
+     const subSortByDate = $w('#subSortByDate').value;
+
      const form = $w('#subDropForms').value;
      const status = $w('#subStatus').value;
 
      if (search !== '') filter = filter.and(wixData.filter().contains('firstName', search).or(wixData.filter().contains('surname', search).or(wixData.filter().contains('emailAddress', search))));
      if (form !== '' && form !== 'All') filter = filter.and(wixData.filter().eq('title', form));
      if (status !== '' && status !== 'All') filter = filter.and(wixData.filter().eq('status', status));
+     if (subDate !== '' && subDate !== null) filter = filter.and(wixData.filter().ge('_createdDate', subDate));
+     if (subSortByDate !== '') {
+         if (subSortByDate == 'Ascending') sort = wixData.sort().ascending('_createdDate');
+         else sort = wixData.sort().descending('_createdDate');
+
+     }
 
      $w('#dataFormSubmissions').setFilter(filter).then(() => {
+         if (sort) $w('#dataFormSubmissions').setSort(sort);
          $w('#dataFormSubmissions').onReady(() => { $w('#totalSubmissions').text = `${$w('#dataFormSubmissions').getTotalCount()} Submissions` });
      })
  }
@@ -145,6 +209,7 @@
      $w('#dataSubmissionItemInfo').setFilter(filter).then(() => {
          $w('#dataSubmissionItemInfo').onReady(() => {
              itemSubmissionInfo = $w('#dataSubmissionItemInfo').getCurrentItem();
+             console.log('itemSubmissionInfo', itemSubmissionInfo)
 
              if (itemSubmissionInfo.additionalInformation) {
                  let filterAdditionalInformation = wixData.filter().eq('submission', itemSubmissionInfo._id);
@@ -195,12 +260,15 @@
              $w('#repDocuments').data = itemSubmissionInfo.documents;
              $w('#repDocuments').forEachItem(($item, itemData) => {
                  $item('#documentName').text = itemData.name;
-                 $item('#documentLink').link = itemData.url;
+
+                 const link = (itemData.name.includes('Passport')) ? `https://static.wixstatic.com/media/${(itemData.url.split('/'))[3]}` : itemData.url;
+                 $item('#documentLink').link = link;
              })
          })
      });
 
      $w('#adminStates').changeState('SubmissionInfo');
+     $w('#adminStates').scrollTo();
  }
 
  function changeStateSendEmail() {
@@ -212,7 +280,6 @@
  function sendEmailToGetAdditionalInfo() {
      let item = $w('#dataSubmissionItemInfo').getCurrentItem();
      item.additionalInformation = true;
-     console.log('item', item)
 
      updateCollection('Formssubmitted', item);
 
@@ -224,8 +291,6 @@
          form: item.title,
          formId: item._id
      }
-
-     insertCollection('HystoryAdditionalInformationEmail', json);
 
      emailAdditionalInformation(json).then(() => {
          $w('#seSubject').value = '';
@@ -241,8 +306,17 @@
  function filterMembers() {
      let filter = wixData.filter();
      const search = $w('#mSearch').value;
+     const memberFormFilter = $w('#mFormOptions').value;
+     const memberStatusFilter = $w('#mStatus').value;
 
      if (search !== '') filter = filter.and(wixData.filter().contains('firstName', search).or(wixData.filter().contains('surname', search).or(wixData.filter().contains('emailAddress', search))));
+     if (memberFormFilter !== '' && memberFormFilter !== null && memberFormFilter !== undefined && memberFormFilter !== 'All') {
+         filter = filter.and(wixData.filter().contains('formsString', memberFormFilter))
+     }
+
+     if (memberStatusFilter !== '' && memberStatusFilter !== null && memberStatusFilter !== undefined && memberStatusFilter !== 'All') {
+         filter = filter.and(wixData.filter().contains('formsString', memberStatusFilter))
+     }
 
      $w('#dataMembers').setFilter(filter).then(() => {
          $w('#dataMembers').onReady(() => { $w('#totalMembers').text = `${$w('#dataMembers').getTotalCount()} Members` });
@@ -251,8 +325,32 @@
  }
  // ==================================================== STATE MEMBERS INFO
  function memberInfo(memberId) {
+     $w('#memFileName').value = '';
+     $w('#memProgramApplication').value = '';
+     $w('#uploadMemberDocument').reset();
+
+     memberInfoIdToSearch = memberId;
      let filter = wixData.filter().eq('memberId', memberId);
-     $w('#dataMembersInfo').setFilter(filter);
+     $w('#dataMembersInfo').setFilter(filter).then(() => {
+         $w('#dataMembersInfo').onReady(() => {
+             memberSubmissionInfo = $w('#dataMembersInfo').getCurrentItem();
+
+             if (memberSubmissionInfo.forms) {
+                 $w('#mRepSubmissions').data = memberSubmissionInfo.forms
+                 $w('#mRepSubmissions').onItemReady(($item, itemData) => {
+                     $item('#mFormNameInfo').text = itemData.formName;
+                     $item('#mStatusInfo').text = itemData.status;
+                 })
+
+                 $w('#mTitleFormSubmissions').expand();
+                 $w('#mRepSubmissions').expand();
+             } else {
+                 $w('#mTitleFormSubmissions').collapse();
+                 $w('#mRepSubmissions').collapse();
+             }
+         })
+     })
+
      $w('#dataMemberDocuments').setFilter(filter).then(() => {
          $w('#dataMemberDocuments').onReady(() => {
              if ($w('#dataMemberDocuments').getTotalCount() > 0) $w('#memRepDocuments').expand(), $w('#messageNoFiles').text = `${$w('#dataMemberDocuments').getTotalCount()} Files`;
@@ -268,12 +366,20 @@
      $w("#uploadMemberDocument").uploadFiles().then((uploadedFiles) => {
              if (!uploadedFiles.length) throw new Error("No files uploaded.");
 
+             const formName = $w('#memProgramApplication').options[$w('#memProgramApplication').selectedIndex];
+
              const certificate = uploadedFiles.map((document) => ({
-                 title: document.originalFileName,
+                 title: $w('#memFileName').value,
                  memberId: memberInfo.memberId,
                  document: document.fileUrl,
-                 email: memberInfo.emailAddress
+                 email: memberInfo.emailAddress,
+                 formNameTitle: formName.value,
+                 formName: $w('#memProgramApplication').value
              }));
+
+             $w('#memFileName').value = '';
+             $w('#memProgramApplication').value = '';
+             $w('#uploadMemberDocument').reset();
 
              return bulkInsertCollection('ACEProgrammedigitalcertificate', certificate);
          }).then(() => { refreshMemberDocuments(); })

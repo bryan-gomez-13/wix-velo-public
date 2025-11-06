@@ -1,11 +1,10 @@
 import { insertCollection, createSubmission, updateCollection, getFormInfoAfterSave, deleteItemFromCollection } from 'backend/collections.web.js';
-import { uploadBase64Image, documentsString, getFileInfo2, createFolder, updateDescriptionOfFile } from 'backend/functions.web.js';
+import { uploadBase64Image, documentsString, getFileInfo2 } from 'backend/functions.web.js';
 import wixLocationFrontend from 'wix-location-frontend';
 import { currentMember } from "wix-members-frontend";
+import { emailForms, emailSignRequired, emailPhysicalSignature } from 'backend/email.web.js';
 import wixData from 'wix-data';
 import { generatePDF } from 'backend/apiIntegration.web.js';
-
-let option1 = true;
 
 let stateOrder = 1,
     state = [],
@@ -34,9 +33,9 @@ const validationRoles = [
     '#dateJoined',
     '#typeOfEmployment',
     '#ifContractValidityPeriod',
-    { repId: '#rrRepRoleResponsabilities', fieldsId: ['#rrRole', '#rrResponsabilities', '#rrDeliverables'], validation: '', title: "Roles and responsibilities of the above-mentioned position / title:" },
+    { repId: '#rrRepRoleResponsabilities', fieldsId: ['#rrRole', '#rrResponsabilities', '#rrDeliverables'], validation: '' },
     '#rrProfessionalAchievementValidation',
-    { repId: '#rrProfessionalAchievementsRep', fieldsId: ['#rrProfessionalAchievement'], validation: '#rrProfessionalAchievementValidation', title: "Professional Achievements" },
+    { repId: '#rrProfessionalAchievementsRep', fieldsId: ['#rrProfessionalAchievement'], validation: '#rrProfessionalAchievementValidation' },
     '#rrPreviousPosition',
     '#rrPositionTitle',
     '#rrDateJoinend',
@@ -44,11 +43,11 @@ const validationRoles = [
 ];
 
 const validationWE = [
-    { repId: '#repWE', fieldsId: ['#weOrganisation', '#wePositionTitle', '#weYearOfService', '#weResponsibilities'], validation: '', title: "Work Experience" }
+    { repId: '#repWE', fieldsId: ['#weOrganisation', '#wePositionTitle', '#weYearOfService', '#weResponsibilities'], validation: '' }
 ]
 
 const validationAcademicProfessionalQualifications = [
-    { repId: '#apqRepAcademicProfessional', fieldsId: ['#apqAcademyInstitution', '#apqCityCountry', '#apqDatesattended', '#apqQualification', '#apqUpdateAcademicCertificate'], validation: '', title: "Academic/Professional Qualifications" },
+    { repId: '#apqRepAcademicProfessional', fieldsId: ['#apqAcademyInstitution', '#apqCityCountry', '#apqDatesattended', '#apqQualification', '#apqUpdateAcademicCertificate'], validation: '' },
     '#apqEnrolled',
     '#apqeAcademyInstitution',
     '#apqeCityCountry',
@@ -118,21 +117,15 @@ function getMember() {
             $w('#dataset1').setFilter(filter).then(() => {
                 $w('#dataset1').onReady(() => {
                     currentMemberInfo = $w('#dataset1').getCurrentItem();
+                    console.log('currentMemberInfo', currentMemberInfo)
 
-                    if (currentMemberInfo.city) {
-                        console.log('currentMemberInfo', currentMemberInfo)
+                    $w('#dDesignation').value = currentMemberInfo.designation
+                    validationState(validationPersonalDetails, false);
 
-                        $w('#dDesignation').value = currentMemberInfo.designation
-                        validationState(validationPersonalDetails, false);
+                    $w('#dName').value = `${currentMemberInfo.firstName} ${currentMemberInfo.surname}`;
+                    $w('#dDesignation').value = currentMemberInfo.designation;
 
-                        $w('#dName').value = `${currentMemberInfo.firstName} ${currentMemberInfo.surname}`;
-                        $w('#dDesignation').value = currentMemberInfo.designation;
-
-                        init();
-                    } else {
-                        $w('#saveFormBackLater').hide();
-                        $w('#formStages').changeState('completeProfile');
-                    }
+                    init();
                 })
             })
         }
@@ -144,7 +137,6 @@ function init() {
     $w('#dynamicDataset').onReady(() => {
         item = $w('#dynamicDataset').getCurrentItem();
         console.log('item', item)
-        $w('#rrPreviousPosition').label = (item.previousPositionLabel) ? item.previousPositionLabel : 'Previous position / title';
 
         if (item.available == false || (item.available == true && item.numberOfApplications <= 0)) {
             $w('#formStages').changeState('applicationEnd');
@@ -172,15 +164,7 @@ function init() {
         changeHtml();
 
         // personalDetails
-        if (item.personalDetails) state.push({
-            order: item.personalDetailsOrder,
-            state: "personalDetails",
-            itemsArrayCheck: true,
-            itemsArray: validationPersonalDetails,
-            itemsObjectCheck: false,
-            itemObject: null,
-            title: item.titlePersonalDetails
-        });
+        if (item.personalDetails) state.push({ order: item.personalDetailsOrder, state: "personalDetails", itemsArrayCheck: true, itemsArray: validationPersonalDetails, itemsObjectCheck: false, itemObject: null });
         // rolesResponsibilities
         if (item.rolesResponsibilities) {
             const typeOfEmploymentOptions = item.typeOfEmployment.map(typeOfEmployment => ({ label: typeOfEmployment, value: typeOfEmployment }));
@@ -190,7 +174,7 @@ function init() {
                     repeater: '#rrRepRoleResponsabilities',
                     txtInfo: '',
                     collectionField: 'currentRolesAndResponsabilitiesInfo',
-                    collectionFieldTxT: 'currentRolesAndResponsabilitiesInfoTxT',
+                    collectionFieldTxT: 'currentRolesAndResponsabilitiesInfoTxT'
                 },
                 'professionalAchievements': {
                     repeater: '#rrProfessionalAchievementsRep',
@@ -205,8 +189,7 @@ function init() {
                 itemsArrayCheck: true,
                 itemsArray: validationRoles,
                 itemsObjectCheck: true,
-                itemObject: jsonObject,
-                title: item.titleRolesResponsibilities
+                itemObject: jsonObject
             });
         }
 
@@ -227,8 +210,7 @@ function init() {
                 itemsArrayCheck: true,
                 itemsArray: validationWE,
                 itemsObjectCheck: true,
-                itemObject: jsonObject,
-                title: item.titleWorkExperience
+                itemObject: jsonObject
             });
         }
 
@@ -249,8 +231,7 @@ function init() {
                 itemsArrayCheck: true,
                 itemsArray: validationAcademicProfessionalQualifications,
                 itemsObjectCheck: true,
-                itemObject: jsonObject,
-                title: item.titleAcademicProfessionalQualifications
+                itemObject: jsonObject
             });
         }
 
@@ -264,8 +245,7 @@ function init() {
                 itemsArrayCheck: true,
                 itemsArray: validationEnglishLanguageProficiency,
                 itemsObjectCheck: false,
-                itemObject: jsonObject,
-                title: item.titleEnglishLanguageProficiency
+                itemObject: jsonObject
             });
         }
 
@@ -279,8 +259,7 @@ function init() {
                 itemsArrayCheck: true,
                 itemsArray: validationItProficiency,
                 itemsObjectCheck: false,
-                itemObject: jsonObject,
-                title: item.titleItProficiency
+                itemObject: jsonObject
             });
         }
 
@@ -307,6 +286,8 @@ function init() {
 
         console.log('state', state)
     })
+
+    wixData.insert('Catch', { array: state }, { "suppressAuth": true, "suppressHooks": true })
 
     // ===================== Buttons functionality
     // Next
@@ -576,15 +557,15 @@ function init() {
             //Email
             $w('#responsibleSignatureType').collapse();
             $w('#responsibleEmailSignature').collapse();
-            $w('#responsibleStamp').expand();
+            $w('#responsibleStamp').collapse();
 
             $w('#responsibleSignatureTypeError').hide();
             $w('#responsibleEmailSignatureError').hide();
-            $w('#responsibleStampError').show();
+            $w('#responsibleStampError').hide();
 
             $w('#responsibleSignatureType').required = false;
             $w('#responsibleEmailSignature').required = false;
-            $w('#responsibleStamp').required = true;
+            $w('#responsibleStamp').required = false;
 
             // Sign Options
             $w('#responsibleSign').collapse();
@@ -861,87 +842,27 @@ function validation(items) {
 }
 
 async function saveWorkExperienceInfo(repeaterId, fields, nameState, label, jsonAtribute) {
-    if (option1) {
-        let tableHTML = "";
-        // Header Color
-        const headerColor = "#000000";
-        // const background = "#0A3170";
+    let summary = "";
 
-        // === Step 1: Extract data from the repeater ===
-        const rows = [];
+    await $w(repeaterId).forEachItem(async ($item, itemData, index) => {
+        summary += `\n${label} ${index + 1}:\n`;
 
-        await $w(repeaterId).forEachItem(async ($item, itemData, index) => {
-            const row = {};
-            for (const fieldId of fields) {
-                const $input = $item(fieldId);
-                const fieldLabel = $input?.label || fieldId.replace('#', '');
-                const value = $input?.value || "";
-                row[fieldLabel] = value;
-            }
-            rows.push(row);
-        });
+        for (const fieldId of fields) {
+            const $input = $item(fieldId); // Get field in this repeater item
+            const label = $input?.label || fieldId.replace('#', ''); // Use label or fallback to ID
+            const value = $input?.value || ""; // Handle input or image field
 
-        // === Step 2: Generate the HTML table ===
-        if (rows.length > 0) {
-            const headers = Object.keys(rows[0]); // Use first row keys as column headers
-
-            tableHTML += `
-    <div style="width:100%; max-width:700px; margin:auto; font-family:Arial, sans-serif; border:1px solid #ccc; border-radius:6px; overflow:hidden;">
-        <!-- TABLE -->
-        <table style="width:100%; border-collapse: collapse; margin: 0;">
-            <thead>
-                <tr style="color: ${headerColor}; background: #f5f5f5;">
-                    ${headers.map(header => `
-                        <th style="border: 1px solid #ccc; padding: 8px; text-align: left; 
-                        font-weight: bold; width:${100 / headers.length}%;">
-                            ${header}
-                        </th>`).join('')}
-                </tr>
-            </thead>
-            <tbody>
-                ${rows.map(row => `
-                    <tr>
-                        ${headers.map(header => `
-                            <td style="border: 1px solid #ccc; padding: 8px; 
-                            word-wrap: break-word; vertical-align: top;">
-                                ${row[header]}
-                            </td>`).join('')}
-                    </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
+            summary += `${label}: ${value}\n`;
         }
 
-        // === Step 3: Save result back into the state object ===
-        state.forEach((stateItem) => {
-            if (stateItem.state === nameState) {
-                stateItem.itemObject[jsonAtribute].txtInfo = tableHTML.trim();
-            }
-        });
+        summary += "\n";
+    });
 
-    } else {
-        let summary = "";
-
-        await $w(repeaterId).forEachItem(async ($item, itemData, index) => {
-            summary += `\n${label} ${index + 1}:\n`;
-
-            for (const fieldId of fields) {
-                const $input = $item(fieldId); // Get field in this repeater item
-                const label = $input?.label || fieldId.replace('#', ''); // Use label or fallback to ID
-                const value = $input?.value || ""; // Handle input or image field
-
-                summary += `${label}: ${value}\n`;
-            }
-
-            // summary += "\n";
-        });
-
-        state.forEach((stateItem) => {
-            if (stateItem.state === nameState) {
-                stateItem.itemObject[jsonAtribute].txtInfo = summary.trim();
-            }
-        });
-    }
+    state.forEach((stateItem) => {
+        if (stateItem.state === nameState) {
+            stateItem.itemObject[jsonAtribute].txtInfo = summary.trim();
+        }
+    });
 }
 
 // INSERT INFO
@@ -984,243 +905,154 @@ function insertFormInfo(formInfo) {
 async function saveInfo(saveValidation) {
     let documents = [];
     let formData = {};
-    let docCounter = 1;
+    let docCounter = 1; // for sequential IDs
     $w('#saveFormBackLater').collapse();
 
-    // ========= UI State =========
-    let folderId = '';
-    if (saveValidation) {
-        $w('#formStages').changeState('loading');
-
-        folderId = await createFolder(currentMemberInfo.folderId, item.title, true);
-        $w('#slider').value = 25;
+    // Helper to add files to documents array
+    function addFilesToDocuments(files) {
+        files.forEach(file => {
+            documents.push({
+                _id: String(docCounter++),
+                name: file.originalFileName,
+                url: file.fileUrl
+            });
+        });
     }
 
-    // === Helper Functions ===
-    const addFilesToDocuments = async (files) => {
-        await Promise.all(
-            files.map(async (file) => {
-                const json = {
-                    _id: file.fileName,
-                    parentFolderId: folderId
-                };
+    if (saveValidation) {
+        $w('#formStages').changeState('loading');
+    } else {
+        $w('#saveFormBackLater').collapse();
+    }
 
-                // Update description (async)
-                await updateDescriptionOfFile(json);
+    state.sort((a, b) => a.order - b.order);
 
-                // Push document info to the array
-                documents.push({
-                    _id: String(docCounter++),
-                    name: file.originalFileName,
-                    url: file.fileUrl
-                });
-            })
-        );
-    };
+    for (const stateItem of state) {
+        const excludedFields = [
+            '#signatureType', '#dSignatureFile', '#dSignatureFile2',
+            '#responsibleSignatureType', '#responsibleSign', '#responsibleSign2'
+        ];
 
-    const formatDate = (dateObj) => {
-        if (!(dateObj instanceof Date)) return "";
-        const yyyy = dateObj.getFullYear();
-        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(dateObj.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
+        if (stateItem.itemsArrayCheck && Array.isArray(stateItem.itemsArray)) {
+            stateItem.itemsArray.forEach((fieldId) => {
+                if (typeof fieldId === 'string' && $w(fieldId).required && !excludedFields.includes(fieldId)) {
+                    const key = fieldId.replace('#', '');
+                    const $field = $w(fieldId);
 
+                    if ($field.value instanceof Date) {
+                        const yyyy = $field.value.getFullYear();
+                        const mm = String($field.value.getMonth() + 1).padStart(2, '0');
+                        const dd = String($field.value.getDate()).padStart(2, '0');
+                        formData[key] = `${yyyy}-${mm}-${dd}`;
+                    } else {
+                        formData[key] = $field.value || $field.src || "";
+                    }
+                } else if (typeof fieldId === 'object') {
+                    const repId = fieldId.repId;
+                    const itemObjectInfo = stateItem.itemObject;
+                    const foundKey = Object.keys(itemObjectInfo).find(key => itemObjectInfo[key].repeater === repId);
+                    const itemObject = itemObjectInfo[foundKey];
+
+                    formData[itemObject.collectionField] = $w(itemObject.repeater).data || [];
+                    formData[itemObject.collectionFieldTxT] = itemObject.txtInfo.trim();
+                }
+            });
+        }
+    }
+
+    documents.push({
+        _id: String(docCounter++),
+        name: "Passport",
+        url: currentMemberInfo.newField
+    });
+
+    // Signer
+    if ($w('#signatureType').value === 'Upload Signature') {
+        const signerFile = await $w('#dSignatureFile').uploadFiles().catch(console.log);
+        if (signerFile?.length) {
+            formData.dSignatureFile = signerFile[0].fileUrl;
+            // addFilesToDocuments(signerFile);
+        }
+    } else {
+        const base64 = await uploadBase64Image($w('#dSignatureFile2').value, `Sign 1 ${formData.passportNo}`);
+        formData.dSignatureFile = base64;
+    }
+
+    // Responsible
+    if ($w('#responsibleSignatureOption').value === 'Digital Signature') {
+        if ($w('#responsibleSignatureType').value === 'Upload Signature') {
+            const responsibleFile = await $w('#responsibleSign').uploadFiles().catch(console.log);
+            if (responsibleFile?.length) {
+                formData.responsibleSignature = responsibleFile[0].fileUrl;
+                // addFilesToDocuments(responsibleFile);
+            }
+        } else {
+            const base64 = await uploadBase64Image($w('#responsibleSign2').value, `Sign 2 ${$w('#responsibleNameDeclaration').value}`);
+            formData.responsibleSignature = base64;
+        }
+    } else {
+        formData.passwordEmailSignature = await generatePassword();
+        if ($w('#responsibleSignatureOption').value === 'Download and Sign Physically') formData.responsibleSignature = '';
+    }
+
+    formData.passwordAdmin = await generatePassword();
+
+    // Upload fields
     const uploadAndCollect = async (selector, key) => {
         const files = await $w(selector).uploadFiles().catch(console.log);
         if (files?.length) {
-            const urls = files.map(f => { return { url: f.fileUrl, fileName: f.fileName } });
+            const urls = files.map(f => f.fileUrl);
             formData[key] = urls;
             addFilesToDocuments(files);
         }
     };
 
-    // ====== Collect form fields ======
-    state.sort((a, b) => a.order - b.order);
-
-    const excludedFields = [
-        '#signatureType', '#dSignatureFile', '#dSignatureFile2',
-        '#responsibleSignatureType', '#responsibleSign', '#responsibleSign2'
-    ];
-
-    let htmlPersonalDetails = "";
-    let htmlBody = "";
-
-    for (const stateItem of state) {
-        // ===== SECTION TITLES =====
-        if (option1 && !["declarations", "declarations2"].includes(stateItem.state)) {
-            // === HTML OUTPUT MODE ===
-            const titleHTML = `<p style="color:#0A3170; font-weight:bold; text-align:left; margin:0;">${stateItem.title.toUpperCase()}</p>`;
-            if (stateItem.state === "personalDetails") htmlPersonalDetails += titleHTML;
-            else htmlBody += titleHTML;
-        } else if (!["declarations", "declarations2"].includes(stateItem.state)) {
-            // === PLAIN TEXT OUTPUT MODE ===
-            const titleText = `${stateItem.title.toUpperCase()}\n`;
-            if (stateItem.state === "personalDetails") htmlPersonalDetails += titleText;
-            else htmlBody += `\n${titleText}`;
-        }
-
-        if (stateItem.itemsArrayCheck && Array.isArray(stateItem.itemsArray)) {
-            for (const fieldId of stateItem.itemsArray) {
-
-                // === CASE 1: Simple string fields ===
-                if (typeof fieldId === 'string' && $w(fieldId).required && !excludedFields.includes(fieldId)) {
-                    const $field = $w(fieldId);
-                    const key = fieldId.replace('#', '');
-
-                    // Get field value (format date if needed)
-                    const value = $field.value instanceof Date ?
-                        formatDate($field.value) :
-                        $field.value || $field.src || "";
-
-                    // Save to formData
-                    formData[key] = value;
-
-                    // Label formatting (keep case, only bold)
-                    const label = $field.label ? $field.label : key;
-
-                    if (option1 && !["declarations", "declarations2"].includes(stateItem.state)) {
-                        // === PERSONAL DETAILS (same line)
-                        if (stateItem.state === "personalDetails") {
-                            htmlPersonalDetails += `<p style="margin:2px 0; text-align:left;"><strong>${label.toUpperCase()}:</strong> ${value}</p>`;
-                        } else {
-                            // === BODY (label on one line, value on next line)
-                            htmlBody += `<p style="margin:2px 0; text-align:left;"><strong>${label.toUpperCase()}</strong></p><p style="margin:0 0 8px 0; text-align:left;">${value}</p>`;
-                        }
-                    } else if (!["declarations", "declarations2"].includes(stateItem.state)) {
-                        // === TEXT OUTPUT MODE ===
-                        const lineText = `${label.toUpperCase()}: ${value}\n`;
-                        if (stateItem.state === "personalDetails") htmlPersonalDetails += lineText;
-                        else htmlBody += lineText;
-                    }
-
-                    // === CASE 2: Repeater-like objects ===
-                } else if (typeof fieldId === 'object') {
-                    const { repId, title } = fieldId;
-                    const itemObjectInfo = stateItem.itemObject;
-                    const foundKey = Object.keys(itemObjectInfo).find(
-                        key => itemObjectInfo[key].repeater === repId
-                    );
-
-                    if (foundKey) {
-                        const itemObject = itemObjectInfo[foundKey];
-                        const repeaterData = $w(itemObject.repeater).data || [];
-
-                        // Save to formData
-                        formData[itemObject.collectionField] = repeaterData;
-                        formData[itemObject.collectionFieldTxT] = itemObject.txtInfo.trim();
-
-                        if (option1 && !["declarations", "declarations2"].includes(stateItem.state)) {
-                            // htmlBody += `<p style="color:#0A3170; font-weight:bold; text-align:left; margin:6px 0 2px 0;">${(title || foundKey).toUpperCase()}</p><p style="text-align:left; margin:0 0 8px 0;">${itemObject.txtInfo.trim()}</p>`;
-                            // htmlBody += `<p style="font-weight:bold; text-align:left; margin:6px 0 2px 0;">${(title || foundKey).toUpperCase()}</p><p style="text-align:left; margin:0 0 8px 0;">${itemObject.txtInfo.trim()}</p>`;
-
-                            let titleBeforeTable = '';
-                            if (repId == '#rrRepRoleResponsabilities') {
-                                titleBeforeTable = 'Roles and responsibilities of the above-mentioned position / title:';
-                                htmlBody += `<p style="margin:4px 0 8px 0; text-align:left; color:#000000;">${titleBeforeTable}</p>`;
-                            } else if (repId == '#repWE') {
-                                titleBeforeTable = 'Describe your previous working experiences before joining the AFC';
-                                htmlBody += `<p style="margin:4px 0 8px 0; text-align:left; color:#000000;">${titleBeforeTable}</p>`;
-                            }
-
-                            htmlBody += itemObject.txtInfo;
-                        } else if (!["declarations", "declarations2"].includes(stateItem.state)) {
-                            htmlBody += `${(title || foundKey).toUpperCase()}\n${itemObject.txtInfo.trim()}\n`;
-                        }
-                    }
-
-                }
-            }
-        }
-    }
-
-    // Add fixed passport file
-    const fileName = currentMemberInfo.newField.replace('wix:image://v1/', '').split('/')[0];
-    const jsonPassport = {
-        fileName,
-        originalFileName: "Passport",
-        fileUrl: currentMemberInfo.newField
-    }
-    await addFilesToDocuments([jsonPassport])
-
-    // documents.push({
-    //     _id: String(docCounter++),
-    //     name: "Passport",
-    //     url: currentMemberInfo.newField
-    // });
-
-    // === Handle Signatures ===
-    // Applicant
-    if ($w('#signatureType').value === 'Upload Signature') {
-        const signerFile = await $w('#dSignatureFile').uploadFiles().catch(console.log);
-        if (signerFile?.length) formData.dSignatureFile = signerFile[0].fileUrl;
-    } else {
-        console.log($w('#dSignatureFile2').value)
-        formData.dSignatureFile = await uploadBase64Image($w('#dSignatureFile2').value, `Sign 1 ${formData.passportNo}`);
-    }
-
-    // Responsible
-    if (item.staffSignature) {
-        if ($w('#responsibleSignatureOption').value === 'Digital Signature') {
-            if ($w('#responsibleSignatureType').value === 'Upload Signature') {
-                const responsibleFile = await $w('#responsibleSign').uploadFiles().catch(console.log);
-                if (responsibleFile?.length) formData.responsibleSignature = responsibleFile[0].fileUrl;
-            } else {
-                formData.responsibleSignature = await uploadBase64Image(
-                    $w('#responsibleSign2').value,
-                    `Sign 2 ${$w('#responsibleNameDeclaration').value}`
-                );
-            }
-        } else {
-            formData.passwordEmailSignature = await generatePassword();
-            formData.responsibleSignature = ($w('#responsibleSignatureOption').value === 'Download and Sign Physically') ? '' : formData.responsibleSignature;
-        }
-    }
-
-    // Admin Password
-    formData.passwordAdmin = await generatePassword();
-
-    // === Upload conditional files ===
     if (item.staffSignature && $w('#responsibleStamp').required) {
         const stampFile = await $w('#responsibleStamp').uploadFiles().catch(console.log);
-        formData.responsibleStamp = stampFile?.length ? await getFileInfo2(stampFile[0].fileUrl) : '';
+        if (stampFile?.length) {
+            const fileInfo = await getFileInfo2(stampFile[0].fileUrl);
+            formData.responsibleStamp = fileInfo;
+        }
     } else {
         formData.responsibleStamp = '';
     }
 
     if (saveValidation) {
-        if ($w('#uploadEducationCertificates').value.length) {
+        if ($w('#uploadEducationCertificates').value.length > 0) {
             await uploadAndCollect('#uploadEducationCertificates', 'uploadEducationCertificates');
         }
-        if ($w('#uploadEnglishCertificate').value.length) {
+        if ($w('#uploadEnglishCertificate').value.length > 0) {
             await uploadAndCollect('#uploadEnglishCertificate', 'uploadEnglishCertificate');
         }
     }
 
-    // === Repeater Uploads in Parallel ===
-    const repeaterUploadPromises = [];
-    if (saveValidation) {
-        $w('#apqRepAcademicProfessional').forEachItem(($item) => {
-            repeaterUploadPromises.push(
-                $item('#apqUpdateAcademicCertificate')
-                .uploadFiles()
-                .then(files => addFilesToDocuments(files))
-                .catch(err => console.log("Repeater upload error:", err))
-            );
-        });
-    }
+    // Repeater upload
+    let repeaterUploadPromises = [];
+    $w('#apqRepAcademicProfessional').forEachItem(($item) => {
+        if (saveValidation) {
+            const promise = $item('#apqUpdateAcademicCertificate').uploadFiles()
+                .then(files => {
+                    addFilesToDocuments(files);
+                })
+                .catch(err => console.log("Repeater upload error:", err));
+            repeaterUploadPromises.push(promise);
+        }
+    });
     await Promise.all(repeaterUploadPromises);
 
-    // === Email String & Status ===
+    // Email string
     const date = new Date();
     const resultString = `Form Name: ${$w('#title').text}
 Name: ${$w('#firstName').value} ${$w('#surname').value}
 Email: ${$w('#emailAddress').value}
 Date: ${date.toDateString()}`;
 
-    let status = ($w('#responsibleSignatureOption').value !== 'Digital Signature') ? 'Signature pending' : 'Sent';
+    let status = 'Sent';
+    if ($w('#responsibleSignatureOption').value !== 'Digital Signature') {
+        status = 'Signature pending';
+    }
 
-    // === Assign Fixed Info ===
+    // Add fixed info
     Object.assign(formData, {
         personalDetails: item.personalDetails,
         rolesResponsibilities: item.rolesResponsibilities,
@@ -1246,76 +1078,65 @@ Date: ${date.toDateString()}`;
         sendEmailAdditionalInformation: false,
         dApplicantDeclaration: $w('#dApplicantDeclaration').html,
         dResponsibleDeclaration: $w('#dResponsibleDeclaration').html,
-
-        cover: item.firstImageUrl,
-        endImage: item.secondImageUrl,
-
-        folderId,
-        rrPreviousPositionLabel: (item.previousPositionLabel) ? item.previousPositionLabel : 'Previous position / title',
-
-        htmlPersonalDetails,
-        htmlBody
     });
 
-    // === Responsible Declaration Handling ===
     if (!item.staffSignature) {
         formData.responsibleOk = true;
         formData.responsibleSignatureOption = 'Not applicable';
         formData.responsibleNameDeclaration = 'Not applicable';
-        formData.responsibleDateDeclaration = formatDate($w('#responsibleDateDeclaration').value);
+
+        const yyyy = $w('#responsibleDateDeclaration').value.getFullYear();
+        const mm = String($w('#responsibleDateDeclaration').value.getMonth() + 1).padStart(2, '0');
+        const dd = String($w('#responsibleDateDeclaration').value.getDate()).padStart(2, '0');
+        formData.responsibleDateDeclaration = `${yyyy}-${mm}-${dd}`;
     }
 
-    if ($w('#responsibleSignatureOption').value === 'Download and Sign Physically') {
-        formData.dResponsibleDeclaration = item.responsibleDeclaration.replace('{NAME}', '______________________________________________________');
+    if ($w('#responsibleSignatureOption').value == 'Digital Signature') {
+        formData.responsibleOk = true;
+    } else if ($w('#responsibleSignatureOption').value == 'Download and Sign Physically') {
+        // Replace placeholder {NAME} with the user's name underlined
+        const updatedHtml = item.responsibleDeclaration.replace('{NAME}', '______________________________________________________');
+
+        formData.dResponsibleDeclaration = updatedHtml;
         formData.responsibleNameDeclaration = '______________________________________________________';
         formData.responsibleDateDeclaration = '______________________________________________________';
     }
 
-    if ($w('#responsibleSignatureOption').value === 'Digital Signature') {
-        formData.responsibleOk = true;
-    }
+    formData.cover = item.firstImageUrl;
+    formData.endImage = item.secondImageUrl;
 
-    $w('#slider').value = 50;
-
-    console.log(0, formData)
-    // console.log('cmpPersonalDetails', htmlPersonalDetails)
-    // console.log('cmpBody', htmlBody)
-
-    // === Save to Collection ===
+    // Save to collection
     if (saveValidation) {
-        if (!item.staffSignature || ['Digital Signature', 'Download and Sign Physically'].includes($w('#responsibleSignatureOption').value)) {
-            const downloadFile = ($w('#responsibleSignatureOption').value == 'Digital Signature') ? true : false;
-
-            const applicationPDF = await generatePDF(formData, folderId, downloadFile);
-            console.log('applicationPDF', applicationPDF)
+        if (!item.staffSignature || $w('#responsibleSignatureOption').value == 'Digital Signature' || $w('#responsibleSignatureOption').value == 'Download and Sign Physically') {
+            console.log('Save')
+            // Create PDF
+            const applicationPDF = await generatePDF(formData);
             formData.pdf = applicationPDF;
 
-            if ($w('#responsibleSignatureOption').value == 'Digital Signature') documents.push({ _id: String(docCounter++), name: `Application - ${item.title}`, url: applicationPDF });
+            documents.push({
+                _id: String(docCounter++),
+                name: `Application - ${item.title}`,
+                url: applicationPDF
+            });
         }
 
+        // Sort documents alphabetically
         documents.sort((a, b) => a.name.localeCompare(b.name));
         formData.documents = documents;
-        formData.documentsString = await documentsString(documents);
+
+        formData.documentsString = await documentsString(documents)
+
+        console.log('formData', formData)
 
         const catchFormInfo = {
+            formJson: formData,
             formName: item.title,
-            baseUrl: wixLocationFrontend.baseUrl,
-            staffSignature: item.staffSignature,
-            _id: item._id,
-            currentMemberInfo,
-            autoSaveId,
-            resultString,
-            formData,
-            memberId
-        };
+            memberId: memberId
+        }
 
-        $w('#slider').value = 75;
-
-        createSubmission(catchFormInfo).then((thankYouState) => {
-            console.log('thankYouState', thankYouState)
-            $w('#slider').value = 100;
+        createSubmission(catchFormInfo, formData).then((thankYouState) => {
             $w('#formStages').changeState(thankYouState);
-        });
+        })
 
     } else {
         $w('#loadingAutoSave').expand();

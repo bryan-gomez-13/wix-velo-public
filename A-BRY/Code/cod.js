@@ -42,6 +42,17 @@ function filter() {
     $w("#dynamicDataset").setSort(sort);
 }
 
+// OnClick events
+$w('#less').onClick((event) => {
+    // Opt 1
+    let $item = $w.at(event.context);
+    const itemId = event.context.itemId;
+    const itemData = $w('#repCartPage').data.find(item => item._id == itemId)
+
+    // Opt 2
+    const eventInfo = categoryRepInfo.find(item => item._id == event.context.itemId);
+});
+
 //EMAIL
 import { triggeredEmails } from 'wix-crm-backend';
 export function email(User) {
@@ -68,7 +79,7 @@ export function email(User) {
 }
 
 // PERMISSIONS
-const wixDataOptions = {"suppressAuth": true,"suppressHooks": true}; 
+const wixDataOptions = { "suppressAuth": true, "suppressHooks": true };
 
 // Save pdf
 export async function generatePDFnewYourweb(template_id, pdfData, updatedItem) {
@@ -83,13 +94,13 @@ export async function generatePDFnewYourweb(template_id, pdfData, updatedItem) {
     });
 
     return fetch("https://api.craftmypdf.com/v1/create", {
-            "method": 'POST',
-            "headers": {
-                'Content-Type': 'application/json',
-                "X-API-KEY": api_key
-            },
-            "body": json_payload
-        })
+        "method": 'POST',
+        "headers": {
+            'Content-Type': 'application/json',
+            "X-API-KEY": api_key
+        },
+        "body": json_payload
+    })
         .then(response => response.json())
         .then(json => {
             console.log(json);
@@ -128,13 +139,72 @@ export function uploadFile(url, name) {
     return mediaManager.importFile(
         "/allMedicalCertificates",
         url, {
-            "mediaOptions": {
-                "mimeType": "application/pdf",
-                "mediaType": "document"
-            },
-            "metadataOptions": {
-                "fileName": `${name}_medical_certificate.pdf`
-            }
+        "mediaOptions": {
+            "mimeType": "application/pdf",
+            "mediaType": "document"
+        },
+        "metadataOptions": {
+            "fileName": `${name}_medical_certificate.pdf`
         }
+    }
     );
 }
+
+// ======================================================= BULK EMAIL SUBSCRIPTION
+// Helper: split array into chunks of "size"
+function chunkArray(array, size) {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
+// Get all contacts with pagination
+export const getAllContacts = webMethod(Permissions.Anyone, async () => {
+    let allContacts = [];
+    let results = await contacts.queryContacts().limit(100).find();
+
+    allContacts.push(...results.items);
+
+    while (results.hasNext()) {
+        results = await results.next(); // this already brings the next batch
+        allContacts.push(...results.items);
+    }
+
+    return allContacts;
+})
+
+export const myBulkUpsertEmailSubscriptionMethod = webMethod(Permissions.Anyone, async () => {
+    const items = await getAllContacts();
+
+    const subscriptions = items
+        .map(emailInfo => {
+            const email = emailInfo?.info?.emails?.items?.[0]?.email;
+            if (!email) return null; // skip if no email
+            return {
+                deliverabilityStatus: "VALID",
+                email,
+                subscriptionStatus: "SUBSCRIBED"
+            };
+        })
+        .filter(item => item !== null);
+
+    const elevatedBulkUpsertEmailSubscription = elevate(
+        wixEmailSubscriptions.emailSubscriptions.bulkUpsertEmailSubscription
+    );
+
+    // Split into chunks of 100
+    const chunks = chunkArray(subscriptions, 100);
+
+    let results = [];
+    for (const chunk of chunks) {
+        try {
+            const res = await elevatedBulkUpsertEmailSubscription(chunk);
+            results.push(res);
+        } catch (err) {
+            console.error("Error on bulk upsert:", err);
+        }
+    }
+
+    return results;
+})

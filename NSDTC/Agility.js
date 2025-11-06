@@ -2,12 +2,16 @@ import { appendValuesWrapper } from 'backend/googlesheet-wrapper.jsw';
 import { createMyPayment } from 'backend/pay';
 import { doRegistration } from 'backend/signIn.jsw';
 import { Email_Agility_Payment, Email_Agility_Owner } from 'backend/emails.jsw';
+import { generalQuery, saveData, updateCollection, lessOne } from 'backend/collections.web.js';
 import wixPay from 'wix-pay';
 
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 
-var total = 0
+let total = 0;
+let courseId = 'db6aa99a-1a84-422a-a743-8951dbb07f16';
+let collectionId = 'Agility';
+let googleSheet = 'SheetAgility';
 
 $w.onReady(function () {
     init();
@@ -27,51 +31,40 @@ export function init() {
 
     $w('#under15').onChange(() => underOption());
     $w('#indicate1').onChange(() => $w('#indicate').value = ($w('#indicate1').value).toString());
-    $w('#bookButton').onClick(() => pay('Agility'));
+    $w('#bookButton').onClick(() => pay());
 }
 
-function getDate() {
+async function getDate() {
+    const course = await generalQuery('Course', '_id', courseId);
+    let firstItem = course[0]; //see item below
+    console.log(firstItem)
 
-    wixData.query("Course").eq("_id", 'db6aa99a-1a84-422a-a743-8951dbb07f16').find().then((results) => {
-        if (results.items.length > 0) {
-            let firstItem = results.items[0]; //see item below
-            let date = new Date(firstItem.date);
-            $w('#date').text = date.toDateString();
+    let date = new Date(firstItem.date);
+    $w('#date').text = date.toDateString();
 
-            $w('#pricingDetails').text = 'Agility $' + firstItem.price;
-            total = firstItem.price
-            $w('#totalPrice').text = '$' + firstItem.price;
-            $w('#cost').text = '$' + firstItem.price;
+    $w('#pricingDetails').text = 'Agility $' + firstItem.price;
+    total = firstItem.price
+    $w('#totalPrice').text = '$' + firstItem.price;
+    $w('#cost').text = '$' + firstItem.price;
 
-            $w('#numberOFPeople').text = "" + firstItem.numberOfPeople;
+    $w('#remainingSpots').text = "" + firstItem.remainingSpots;
 
-            $w('#SubmitNoT').text = firstItem.formDisabledMessage;
+    if (firstItem.enableForm == false || parseInt(firstItem.remainingSpots) <= 0) {
+        $w('#BOne').disable();
+        $w('#fullName').disable();
+        $w('#phone').disable();
+        $w('#email').disable();
+        $w('#confirmEmail').disable();
+        $w('#address').disable();
+        $w('#question').disable();
 
-            if (firstItem.enableForm == false || parseInt(firstItem.numberOfPeople) <= 0) {
-                $w('#BOne').disable();
-                $w('#fullName').disable();
-                $w('#phone').disable();
-                $w('#email').disable();
-                $w('#confirmEmail').disable();
-                $w('#address').disable();
-                $w('#question').disable();
-                $w('#SubmitNoT').expand();
-                $w('#SubmitNoT').expand();
+        // $w('#section2').collapse();
+        $w('#Box').hide();
+        $w('#SubmitNoT').expand();
 
-                /*$w('#group5').collapse();
-                $w('#confirmEmail').collapse();
-                $w('#address').collapse();
-                $w('#question').collapse();
-                
-                $w('#SubmitNoB').expand();*/
-            }
-
-        } else {
-            // handle case where no matching items found
-        }
-    }).catch((err) => {
-        let errorMsg = err;
-    });
+        if (firstItem.fullyBookedMessageActive && firstItem.fullyBookedMessage) $w('#SubmitNoT').text = firstItem.fullyBookedMessage;
+        else $w('#SubmitNoT').text = firstItem.formDisabledMessage;
+    }
 }
 
 //	==================================================================== F I R T S	====================================================================
@@ -190,128 +183,99 @@ function BackFour() {
 }
 
 // ==================================================================== P A Y ====================================================================
-async function pay(course) {
+async function pay() {
+    try {
+        // Get course info
+        const courseInfo = (await generalQuery('Course', '_id', courseId));
 
-    wixData.query("Course")
-        .eq("course", 'Agility')
-        .find()
-        .then((results) => {
-            if (results.items.length > 0) {
-                $w('#numberOFPeople').text = "" + results.items[0].numberOfPeople;
+        // Update remaining spots
+        $w('#remainingSpots').text = `${courseInfo.remainingSpots}`;
 
-                if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#bookButton').disable();
-                    $w('#PayNoT').expand();
+        // If no spots available, disable button and show message
+        if (courseInfo.remainingSpots <= 0) {
+            $w('#bookButton').disable();
+            $w('#PayNoT').expand();
+            return;
+        }
 
-                } else {
-                    // Step 2 - Call backend function. 
-                    // (Next, see step 3 in the backend code below.)
-                    createMyPayment(course, total)
-                        // When the payment has been created and a paymentId has been returned:
-                        .then((payment) => {
-                            // Step 5 - Call the startPayment() function with the paymentId.
-                            // Include PaymentOptions to customize the payment experience.
-                            wixPay.startPayment(payment.id, {
-                                    "showThankYouPage": false,
-                                    //"termsAndConditionsLink": "https://davidcamachob.wixsite.com/nsdt/contact-nsdtc"
-                                })
-                                // Step 6 - Visitor enters the payment information.
-                                // When the payment form is completed:
-                                .then(async (result) => {
-                                    // Step 7 - Handle the payment result.
-                                    // (Next, see step 8 in the backend code below.)
-                                    //$w('#button26').enable();
-                                    let payment = "";
-                                    if (result.status === "Successful") {
-                                        $w('#bookButton').collapse();
-                                        $w('#text35').expand();
-                                        $w('#reloadThanks').expand();
+        let dateT = new Date($w('#date').text);
+        let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
 
-                                        // Delete one to the total
-                                        await lessOne(course)
+        const questionMonths = $w('#question').value;
+        const fullName = $w('#fullName').value;
+        const phone = $w('#phone').value;
+        const email = $w('#email').value;
+        const fullAddress = $w('#address').value.formatted;
 
-                                        payment = "Paid";
-                                        await saveValuesToSheet(payment);
-                                    } else if (result.status === "Error") {
-                                        payment = "Error";
-                                        await saveValuesToSheet(payment);
-                                    }
-                                });
-                        });
-                }
+        const dogsName = $w('#name').value;
+        const dogsDob = $w('#dob').value.getDate() + '/' + (parseInt($w('#dob').value.getMonth()) + 1) + '/' + $w('#dob').value.getFullYear()
+        const dogsBreed = $w('#breed').value;
+        const dogsStatus = $w('#status').value;
 
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
-}
+        const indicateIfYouHave = $w('#indicate').value;
+        const hearAboutUs = $w('#hear').value;
+        const anythingElse = $w('#anything').value;
+        const under15 = $w('#under15').value;
+        const whatAge = $w('#age').value;
 
-//	==================================================================== G O O G L E    S H E E T ====================================================================
-async function saveValuesToSheet(payment) {
-    let dateT = new Date($w('#date').text);
-    let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
+        const agreement1 = $w('#check1').value;
+        const agreement2 = $w('#check2').value;
+        const agreement3 = $w('#check3').value;
+        const agreement4 = $w('#check4').value;
+        const agreement5 = $w('#check5').value;
 
-    const questionMonths = $w('#question').value;
-    const fullName = $w('#fullName').value;
-    const phone = $w('#phone').value;
-    const email = $w('#email').value;
-    const fullAddress = $w('#address').value.formatted;
+        //COLLECTION IN WIX
+        const formData = { questionMonths, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed, dogsStatus, indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement3, agreement4, agreement5 };
 
-    const dogsName = $w('#name').value;
-    const dogsDob = $w('#dob').value.getDate() + '/' + (parseInt($w('#dob').value.getMonth()) + 1) + '/' + $w('#dob').value.getFullYear()
-    const dogsBreed = $w('#breed').value;
-    const dogsStatus = $w('#status').value;
+        // Save submission to database
+        console.log('formData', formData)
+        let trainingSubmission = await saveData(collectionId, formData);
+        console.log(0, collectionId, formData)
 
-    const indicateIfYouHave = $w('#indicate').value;
-    const hearAboutUs = $w('#hear').value;
-    const anythingElse = $w('#anything').value;
-    const under15 = $w('#under15').value;
-    const whatAge = $w('#age').value;
+        console.log(1, courseId, collectionId, 'payment')
+        // Reduce available spots
+        const status = await lessOne(courseId, collectionId, 'payment');
+        if (!status) {
+            $w('#bookButton').disable();
+            $w('#PayNoT').expand();
+            return;
+        }
 
-    const agreement1 = $w('#check1').value;
-    const agreement2 = $w('#check2').value;
-    const agreement3 = $w('#check3').value;
-    const agreement4 = $w('#check4').value;
-    const agreement5 = $w('#check5').value;
+        console.log(2, courseInfo.course, total)
+        // Create payment session
+        const paymentSession = await createMyPayment(courseInfo.course, total);
 
-    let values = [];
-    let toInsert = {};
+        // Start Wix payment process
+        const result = await wixPay.startPayment(paymentSession.id, { showThankYouPage: false });
+        let paymentStatus = "Pending";
 
-    // GOOGLE SHEET
-    values = [payment, questionMonths, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed,
-        dogsStatus, indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement3, agreement4, agreement5
-    ];
-    //COLLECTION IN WIX
-    toInsert = {
-        payment,
-        questionMonths,
-        date,
-        fullName,
-        phone,
-        email,
-        fullAddress,
-        dogsName,
-        dogsDob,
-        dogsBreed,
-        dogsStatus,
-        indicateIfYouHave,
-        hearAboutUs,
-        anythingElse,
-        under15,
-        whatAge,
-        agreement1,
-        agreement2,
-        agreement3,
-        agreement4,
-        agreement5
-    };
+        if (result.status === "Successful") {
+            paymentStatus = "Paid";
+            $w('#bookButton').collapse();
+            $w('#text35').expand();
+            $w('#reloadThanks').expand();
+            wixLocation.to('/thank-you');
+        } else if (result.status === "Error") {
+            paymentStatus = "Error";
+        }
 
-    const res = await appendValuesWrapper(values, 'SheetAgility');
-    //console.log(res);
-    await wixData.insert('Agility', toInsert)
-    // let date = new Date()
-    await register()
+        // Update submission with payment status
+        trainingSubmission.payment = paymentStatus;
+
+        // GOOGLE SHEET
+        const sheetValues = [paymentStatus, questionMonths, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed, dogsStatus, indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement3, agreement4, agreement5];
+        // Save info to Google Sheet
+
+        await Promise.all([
+            appendValuesWrapper(sheetValues, googleSheet),
+            updateCollection(collectionId, trainingSubmission),
+            register()
+        ]);
+
+    } catch (error) {
+        console.error("❌ Error in pay():", error);
+        // Optional: show an error message to the user
+    }
 }
 
 //	==================================================================== R E G I S T E R ====================================================================
@@ -402,29 +366,6 @@ function delay(time) {
     });
 }
 
-async function lessOne(course) {
-    await wixData.query("Course")
-        .eq("course", course)
-        .find()
-        .then(async (results) => {
-            if (results.items.length > 0) {
-                let plan = results.items[0]; //see item below
-
-                if (plan.numberOfPeople > 0) {
-                    plan.numberOfPeople = plan.numberOfPeople - 1
-                    await wixData.update("Course", plan)
-                }
-
-            } else {
-                // handle case where no matching items found
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
-
-}
-
 async function fullPeople() {
 
     $w('#textValidation1').collapse();
@@ -451,8 +392,4 @@ async function fullPeople() {
         $w('#textValidation1').text = err.message;
         $w('#textValidation1').expand();
     }
-}
-
-function checkNumberOfPeople() {
-
 }

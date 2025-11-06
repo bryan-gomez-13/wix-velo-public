@@ -3,6 +3,8 @@ import { getCollection, generalQuery2, updateCollection } from 'backend/collecti
 import { triggeredEmails } from "wix-crm-backend";
 import { getEmail } from 'backend/functions.web.js';
 
+const baseUrlWix = 'https://registration.afcacademy.com/'
+
 export const emailForms = webMethod(Permissions.Anyone, async (json) => {
     const emailNotifications = (await getCollection('FormNotifications')).map(item => item.memberId);
     const emailId = 'emailForm';
@@ -78,7 +80,7 @@ export const emailAdditionalInformation = webMethod(Permissions.Anyone, async (j
         variables: {
             subject: json.subject,
             message: json.message,
-            urlWix: `https://yourwebnz.wixsite.com/afcacademy/additional-information?formId=${json.formId}`,
+            urlWix: `https://registration.afcacademy.com/additional-information?formId=${json.formId}`,
             btLabel: 'Upload Additional Information'
         }
     };
@@ -101,7 +103,8 @@ export const emailAdditionalInformationAdmin = webMethod(Permissions.Anyone, asy
                 userName: json.userName,
                 email: json.email,
                 formName: json.formName,
-                urlWix: json.urlWix
+                urlWix: `${baseUrlWix}/admin?formId=${json.submission}`,
+                folderDownloadUrl: json.folderDownloadUrl
             }
         };
 

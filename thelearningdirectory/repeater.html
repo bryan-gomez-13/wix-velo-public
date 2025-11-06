@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categories Carousel - Round Cards</title>
+    <!-- Preconnect to Google Fonts for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Load font asynchronously (non-blocking) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-orange: #F06E53;
+            --primary-blue: #285A84;
+            --primary-dark-blue: #25318D;
+            --white: #FFFFFF;
+            --light-gray: #F8F9FA;
+            --text-dark: #2C3E50;
+            --text-muted: #6C757D;
+            --shadow-light: rgba(240, 110, 83, 0.1);
+            --shadow-medium: rgba(37, 49, 141, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: transparent;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            /* Fast render - no flex, no min-height */
+        }
+
+        .carousel-container {
+            width: 100%;
+            position: relative;
+            margin: 0;
+            padding: 0;
+        }
+
+
+        .carousel-wrapper {
+            position: relative;
+            background: transparent;
+            border-radius: 0;
+            padding: 20px 0;
+            box-shadow: none;
+            overflow: hidden;
+        }
+
+        .carousel-main {
+            position: relative;
+            height: 180px;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 0;
+            perspective: 1000px;
+        }
+
+        .carousel-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 30px;
+            padding: 20px 50px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .carousel-track.smooth-scroll {
+            scroll-behavior: smooth;
+        }
+
+        .carousel-track::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        .carousel-slide {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: var(--white);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 15px;
+            box-shadow: 0 4px 15px var(--shadow-light);
+            transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+            transform-style: preserve-3d;
+        }
+
+        .carousel-slide.spin {
+            animation: spinCard 0.5s ease forwards;
+        }
+
+        .carousel-slide:hover {
+            background: linear-gradient(135deg, rgba(240, 110, 83, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%);
+            box-shadow: 0 8px 25px rgba(240, 110, 83, 0.3);
+            border-color: var(--primary-orange);
+        }
+
+        @keyframes spinCard {
+            0% {
+                transform: translateY(0) scale(1) rotateY(0deg);
+            }
+            50% {
+                transform: translateY(-5px) scale(1.05) rotateY(180deg);
+            }
+            100% {
+                transform: translateY(-5px) scale(1.05) rotateY(360deg);
+            }
+        }
+
+        .slide-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+            object-fit: cover;
+            border: 2px solid var(--primary-orange);
+            box-shadow: 0 2px 8px var(--shadow-light);
+        }
+
+        .slide-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--primary-dark-blue);
+            margin-bottom: 0;
+            line-height: 1.2;
+            transition: color 0.3s ease;
+        }
+
+        .carousel-slide:hover .slide-title {
+            color: var(--primary-orange);
+        }
+
+
+
+
+        .loading-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            /* VISIBLE BY DEFAULT - No JavaScript needed */
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(240, 110, 83, 0.2);
+            border-top: 4px solid var(--primary-orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--primary-dark-blue);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-hidden {
+            display: none !important;
+            opacity: 0;
+        }
+
+        .no-data-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .no-data-text {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 1.1rem;
+            max-width: 300px;
+        }
+
+        .no-data-container.no-data-visible {
+            display: flex;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .carousel-slide {
+                width: 110px;
+                height: 110px;
+                padding: 12px;
+            }
+            
+            .slide-logo {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .slide-title {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .carousel-wrapper {
+                padding: 10px 0;
+            }
+            
+            .carousel-track {
+                gap: 20px;
+            }
+            
+            .carousel-slide {
+                width: 100px;
+                height: 100px;
+                padding: 10px;
+            }
+            
+            .slide-logo {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .slide-title {
+                font-size: 0.65rem;
+            }
+            
+        }
+
+        @media (max-width: 480px) {
+            .carousel-wrapper {
+                padding: 5px 0;
+            }
+            
+            .carousel-track {
+                gap: 15px;
+            }
+            
+            .carousel-slide {
+                width: 90px;
+                height: 90px;
+                padding: 8px;
+            }
+            
+            .slide-logo {
+                width: 30px;
+                height: 30px;
+                margin-bottom: 6px;
+            }
+            
+            .slide-title {
+                font-size: 0.6rem;
+                margin-bottom: 0;
+            }
+            
+            .carousel-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+
+        /* Touch support */
+        @media (hover: none) {
+            .carousel-slide:active {
+                transform: scale(0.95) rotateY(180deg);
+                transition: transform 0.3s ease;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="carousel-container">
+        <div class="carousel-wrapper">
+            <div class="carousel-main">
+                <div class="loading-container" id="loadingContainer">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading categories...</div>
+                </div>
+
+                <div class="no-data-container" id="noDataContainer">
+                    <div class="no-data-text">No categories available at the moment</div>
+                </div>
+
+                <div class="carousel-track" id="carouselTrack"></div>
+            </div>
+
+            <!-- Controls removed for scroll-based carousel -->
+        </div>
+    </div>
+
+    <!-- STEP 1: Notify Wix IMMEDIATELY (inline script, executes first) -->
+    <script>
+        if (window.parent) {
+            window.parent.postMessage({ type: 'carouselReady' }, '*');
+        }
+    </script>
+
+    <!-- STEP 2: Main carousel code (deferred, non-blocking) -->
+    <script>
+        const CAROUSEL_CONFIG = {
+            autoplay: true,
+            autoplayDelay: 3000,
+            enableSwipe: true,
+            enableKeyboard: true,
+            loop: true,
+            pauseOnHover: true,
+            showCounter: false,
+            smoothTransitions: true,
+            slidesToShow: 4,
+            slidesToScroll: 1
+        };
+
+        let carouselData = [];
+
+        class CategoriesCarousel {
+            constructor(data, config) {
+                this.data = data || [];
+                this.config = config;
+                this.isAutoPlaying = config.autoplay;
+                this.autoplayTimer = null;
+                this.touchStartX = 0;
+                this.scrollHandler = null;
+
+                this.init();
+            }
+
+            init() {
+                this.attachEventListeners();
+                this.showLoading();
+                this.hideNoData();
+                this.render();
+                
+                if (this.data?.length) {
+                    this.hideLoading();
+                    if (this.isAutoPlaying) this.startAutoplay();
+                }
+            }
+
+            showLoading() {
+                document.getElementById('loadingContainer')?.classList.remove('loading-hidden');
+            }
+
+            hideLoading() {
+                document.getElementById('loadingContainer')?.classList.add('loading-hidden');
+            }
+
+            showNoData(message = 'No categories available') {
+                const container = document.getElementById('noDataContainer');
+                const text = container?.querySelector('.no-data-text');
+                if (container) {
+                    container.classList.add('no-data-visible');
+                    if (text) text.textContent = message;
+                }
+            }
+
+            hideNoData() {
+                document.getElementById('noDataContainer')?.classList.remove('no-data-visible');
+            }
+
+            render() {
+                const track = document.getElementById('carouselTrack');
+                track.innerHTML = '';
+
+                if (!this.data?.length) {
+                    this.showNoData();
+                    return;
+                }
+
+                this.hideNoData();
+
+                if (this.scrollHandler) {
+                    track.removeEventListener('scroll', this.scrollHandler);
+                }
+
+                const cloneMultiplier = 5;
+                const slidesToCreate = this.data.length * cloneMultiplier;
+                
+                for (let i = 0; i < slidesToCreate; i++) {
+                    const originalIndex = i % this.data.length;
+                    const item = this.data[originalIndex];
+                    
+                    const slide = document.createElement('div');
+                    slide.className = 'carousel-slide';
+                    slide.setAttribute('data-index', originalIndex);
+                    slide.setAttribute('data-clone-index', i);
+                    
+                    const logoUrl = this.resolveImageUrl(item.imagen) || 'https://via.placeholder.com/80x80?text=📁';
+                    
+                    slide.innerHTML = `
+                        <img src="${logoUrl}" alt="${item.name || 'Category'}" class="slide-logo">
+                        <h3 class="slide-title">${item.name || 'No Name'}</h3>
+                    `;
+
+                    slide.addEventListener('mouseenter', () => slide.classList.add('spin'));
+                    slide.addEventListener('animationend', () => slide.classList.remove('spin'));
+                    slide.addEventListener('click', () => this.selectCategory(originalIndex, item));
+
+                    track.appendChild(slide);
+                }
+
+                requestAnimationFrame(() => {
+                    if (track?.scrollWidth > 0) {
+                        const slideWidth = 150;
+                        const oneSetWidth = this.data.length * slideWidth;
+                        track.scrollLeft = oneSetWidth * 2;
+                        this.setupInfiniteScroll();
+                    }
+                });
+            }
+
+            setupInfiniteScroll() {
+                const track = document.getElementById('carouselTrack');
+                if (!track) return;
+
+                let isRepositioning = false;
+                const slideWidth = 150;
+                const oneSetWidth = this.data.length * slideWidth;
+                
+                this.scrollHandler = () => {
+                    if (isRepositioning) return;
+                    
+                    const scrollLeft = track.scrollLeft;
+                    
+                    if (scrollLeft < oneSetWidth * 0.2 || scrollLeft > oneSetWidth * 3.8) {
+                        isRepositioning = true;
+                        const offset = scrollLeft % oneSetWidth;
+                        const newPosition = oneSetWidth * 2 + offset;
+                        
+                        track.classList.remove('smooth-scroll');
+                        track.scrollLeft = newPosition;
+                        
+                        requestAnimationFrame(() => isRepositioning = false);
+                    }
+                };
+                
+                track.addEventListener('scroll', this.scrollHandler, { passive: true });
+            }
+
+            resolveImageUrl(imageValue) {
+                if (!imageValue) return '';
+                
+                if (typeof imageValue === 'string') {
+                    if (/^https?:\/\//i.test(imageValue)) return imageValue;
+                    
+                    if (imageValue.startsWith('wix:image://')) {
+                        const segments = imageValue.replace('wix:image://', '').split('#')[0].split('/');
+                        const mediaId = segments[1];
+                        const fileName = encodeURIComponent(decodeURIComponent(segments.slice(2).join('/') || 'image.jpg'));
+                        return `https://static.wixstatic.com/media/${mediaId}/v1/fill/w_160,h_160,al_c,q_85/${fileName}`;
+                    }
+                }
+                
+                if (typeof imageValue === 'object') {
+                    return this.resolveImageUrl(imageValue.src || imageValue.url || '');
+                }
+                
+                return '';
+            }
+
+            selectCategory(index, item) {
+                const slides = document.querySelectorAll('.carousel-slide');
+                slides.forEach(slide => slide.style.transform = 'scale(1)');
+                
+                const selectedSlide = slides[index];
+                if (selectedSlide) {
+                    selectedSlide.style.transform = 'scale(0.95)';
+                    setTimeout(() => selectedSlide.style.transform = 'scale(1)', 150);
+                }
+
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'categorySelected',
+                        category: item,
+                        categoryId: item._id || item.id
+                    }, '*');
+                }
+
+                window.dispatchEvent(new CustomEvent('categorySelected', {
+                    detail: { category: item, index: index }
+                }));
+            }
+
+            smoothScroll(track, action) {
+                track.classList.add('smooth-scroll');
+                action();
+                setTimeout(() => track.classList.remove('smooth-scroll'), 500);
+            }
+
+            next() {
+                const track = document.getElementById('carouselTrack');
+                if (track) this.smoothScroll(track, () => track.scrollBy({ left: 150, behavior: 'smooth' }));
+            }
+
+            prev() {
+                const track = document.getElementById('carouselTrack');
+                if (track) this.smoothScroll(track, () => track.scrollBy({ left: -150, behavior: 'smooth' }));
+            }
+
+            goToSlide(index) {
+                const track = document.getElementById('carouselTrack');
+                if (track && this.data?.length) {
+                    const position = (this.data.length * 2 + index) * 150;
+                    this.smoothScroll(track, () => track.scrollTo({ left: position, behavior: 'smooth' }));
+                }
+            }
+
+            startAutoplay() {
+                this.stopAutoplay();
+                this.autoplayTimer = setInterval(() => this.next(), this.config.autoplayDelay);
+            }
+
+            stopAutoplay() {
+                if (this.autoplayTimer) {
+                    clearInterval(this.autoplayTimer);
+                    this.autoplayTimer = null;
+                }
+            }
+
+            resetAutoplay() {
+                if (this.isAutoPlaying) this.startAutoplay();
+            }
+
+            attachEventListeners() {
+                const track = document.getElementById('carouselTrack');
+                
+                if (track && this.config.enableSwipe) {
+                    track.addEventListener('touchstart', (e) => {
+                        this.touchStartX = e.touches[0].clientX;
+                    }, { passive: true });
+
+                    track.addEventListener('touchend', (e) => {
+                        const distance = this.touchStartX - e.changedTouches[0].clientX;
+                        if (Math.abs(distance) > 50) distance > 0 ? this.next() : this.prev();
+                    }, { passive: true });
+                }
+
+                if (this.config.enableKeyboard) {
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'ArrowLeft') this.prev();
+                        else if (e.key === 'ArrowRight') this.next();
+                    });
+                }
+
+                if (this.config.pauseOnHover) {
+                    const wrapper = document.querySelector('.carousel-wrapper');
+                    wrapper.addEventListener('mouseenter', () => this.stopAutoplay());
+                    wrapper.addEventListener('mouseleave', () => {
+                        if (this.isAutoPlaying) this.startAutoplay();
+                    });
+                }
+            }
+
+            updateData(newData) {
+                this.data = newData || [];
+                this.hideLoading();
+                
+                if (!newData?.length) {
+                    this.showNoData();
+                    const track = document.getElementById('carouselTrack');
+                    if (track) track.innerHTML = '';
+                } else {
+                    this.hideNoData();
+                    this.render();
+                    if (this.isAutoPlaying) {
+                        setTimeout(() => this.resetAutoplay(), 200);
+                    }
+                }
+            }
+        }
+
+        let carousel = new CategoriesCarousel(carouselData, CAROUSEL_CONFIG);
+
+        window.addEventListener('message', (event) => {
+            if (event.data?.type === 'updateCarousel') {
+                carousel.updateData(event.data.data || []);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (carousel) carousel.render();
+        });
+
+        window.updateCarouselFromWix = (data) => carousel.updateData(data);
+        window.carousel = carousel;
+    </script>
+</body>
+</html>

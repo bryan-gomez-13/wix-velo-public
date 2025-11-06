@@ -2,12 +2,17 @@ import { appendValuesWrapper } from 'backend/googlesheet-wrapper.jsw';
 import { createMyPayment } from 'backend/pay';
 import { doRegistration } from 'backend/signIn.jsw';
 import { Email_BabyPPS_Payment, Email_BabyPPS_Owner } from 'backend/emails.jsw';
+import { generalQuery, saveData, updateCollection, lessOne } from 'backend/collections.web.js';
 import wixPay from 'wix-pay';
 
 import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 
-var total = 0
+var total = 0;
+
+let courseId = '04abfc69-1e45-4c24-8cad-22e90fcfc559';
+let collectionId = 'BabyPPS';
+let googleSheet = 'SheetBabyPPS';
 
 $w.onReady(function () {
     init();
@@ -27,47 +32,43 @@ export function init() {
 
     $w('#under15').onChange(() => underOption());
     $w('#indicate1').onChange(() => $w('#indicate').value = ($w('#indicate1').value).toString());
-    $w('#bookButton').onClick(() => pay('BabyPPS'));
+    $w('#bookButton').onClick(() => pay());
 }
 
-function getDate() {
+async function getDate() {
+    const course = await generalQuery('Course', '_id', courseId);
 
-    wixData.query("Course")
-        .eq("course", 'BabyPPS')
-        .find()
-        .then((results) => {
-            if (results.items.length > 0) {
-                let firstItem = results.items[0]; //see item below
-                let date = new Date(firstItem.date);
-                $w('#date').text = date.toDateString();
+    let firstItem = course[0]; //see item below
+    let date = new Date(firstItem.date);
+    $w('#date').text = date.toDateString();
 
-                $w('#pricingDetails').text = 'BabyPPS $' + firstItem.price;
-                total = firstItem.price
-                $w('#totalPrice').text = '$' + firstItem.price;
-                $w('#cost').text = '$' + firstItem.price;
+    $w('#pricingDetails').text = 'BabyPPS $' + firstItem.price;
+    total = firstItem.price
+    $w('#totalPrice').text = '$' + firstItem.price;
+    $w('#cost').text = '$' + firstItem.price;
 
-                $w('#numberOFPeople').text = "" + firstItem.numberOfPeople;
+    $w('#remainingSpots').text = "" + firstItem.remainingSpots;
 
-                if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#BOne').disable();
-                    $w('#fullName').disable();
-                    $w('#phone').disable();
-                    $w('#email').disable();
-                    $w('#confirmEmail').disable();
-                    $w('#address').disable();
-                    $w('#question').disable();
-                    $w('#SubmitNoT').expand();
-                    $w('#SubmitNoT').expand();
-                    $w('#SubmitNoT').expand();
-                }
+    if (firstItem.enableForm == false || parseInt(firstItem.remainingSpots) <= 0) {
+        $w('#BOne').disable();
+        $w('#fullName').disable();
+        $w('#phone').disable();
+        $w('#email').disable();
+        $w('#confirmEmail').disable();
+        $w('#address').disable();
+        $w('#question').disable();
+        $w('#SubmitNoT').expand();
+        $w('#SubmitNoT').expand();
+        $w('#SubmitNoT').expand();
 
-            } else {
-                // handle case where no matching items found
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
+        // $w('#section2').collapse();
+        $w('#Box').hide();
+        $w('#SubmitNoT').expand();
+
+        if (firstItem.fullyBookedMessageActive && firstItem.fullyBookedMessage) $w('#SubmitNoT').text = firstItem.fullyBookedMessage;
+        else $w('#SubmitNoT').text = firstItem.formDisabledMessage;
+    }
+
 }
 
 //	==================================================================== F I R T S	====================================================================
@@ -185,125 +186,95 @@ function BackFour() {
 }
 
 // ==================================================================== P A Y ====================================================================
-async function pay(course) {
-    wixData.query("Course")
-        .eq("course", 'BabyPPS')
-        .find()
-        .then((results) => {
-            if (results.items.length > 0) {
-                $w('#numberOFPeople').text = "" + results.items[0].numberOfPeople;
+async function pay() {
+    try {
+        // Get course info
+        const courseInfo = (await generalQuery('Course', '_id', courseId))[0];
 
-                if (parseInt($w('#numberOFPeople').text) == 0) {
-                    $w('#bookButton').disable();
-                    $w('#PayNoT').expand();
+        // Update remaining spots
+        $w('#remainingSpots').text = `${courseInfo.remainingSpots}`;
 
-                } else {
-                    // Step 2 - Call backend function. 
-                    // (Next, see step 3 in the backend code below.)
-                    createMyPayment(course, total)
-                        // When the payment has been created and a paymentId has been returned:
-                        .then((payment) => {
-                            // Step 5 - Call the startPayment() function with the paymentId.
-                            // Include PaymentOptions to customize the payment experience.
-                            wixPay.startPayment(payment.id, {
-                                    "showThankYouPage": false,
-                                    //"termsAndConditionsLink": "https://davidcamachob.wixsite.com/nsdt/contact-nsdtc"
-                                })
-                                // Step 6 - Visitor enters the payment information.
-                                // When the payment form is completed:
-                                .then(async (result) => {
-                                    // Step 7 - Handle the payment result.
-                                    // (Next, see step 8 in the backend code below.)
-                                    //$w('#button26').enable();
-                                    let payment = "";
-                                    if (result.status === "Successful") {
-                                        $w('#bookButton').collapse();
-                                        $w('#text35').expand();
-                                        $w('#reloadThanks').expand();
+        // If no spots available, disable button and show message
+        if (courseInfo.remainingSpots <= 0) {
+            $w('#bookButton').disable();
+            $w('#PayNoT').expand();
+            return;
+        }
 
-                                        // Delete one to the total
-                                        await lessOne(course)
+        let dateT = new Date($w('#date').text);
+        let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
 
-                                        payment = "Paid";
-                                        await saveValuesToSheet(payment);
-                                    } else if (result.status === "Error") {
-                                        payment = "Error";
-                                        await saveValuesToSheet(payment);
-                                    }
-                                });
-                        });
-                }
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
-}
+        const questionWeeks = $w('#question').value;
+        const fullName = $w('#fullName').value;
+        const phone = $w('#phone').value;
+        const email = $w('#email').value;
+        const fullAddress = $w('#address').value.formatted;
 
-//	==================================================================== G O O G L E    S H E E T ====================================================================
-async function saveValuesToSheet(payment) {
-    let date = $w('#date').text;
+        const dogsName = $w('#name').value;
+        const dogsDob = $w('#dob').value.getDate() + '/' + (parseInt($w('#dob').value.getMonth()) + 1) + '/' + $w('#dob').value.getFullYear()
+        const dogsBreed = $w('#breed').value;
+        const dogsStatus = $w('#status').value;
 
-    const questionWeeks = $w('#question').value;
-    const fullName = $w('#fullName').value;
-    const phone = $w('#phone').value;
-    const email = $w('#email').value;
-    const fullAddress = $w('#address').value.formatted;
+        const indicateIfYouHave = $w('#indicate').value;
+        const hearAboutUs = $w('#hear').value;
+        const anythingElse = $w('#anything').value;
+        const under15 = $w('#under15').value;
+        const whatAge = $w('#age').value;
 
-    const dogsName = $w('#name').value;
-    const dogsDob = $w('#dob').value.toDateString();
-    const dogsBreed = $w('#breed').value;
-    const dogsStatus = $w('#status').value;
+        const agreement1 = $w('#check1').value;
+        const agreement2 = $w('#check2').value;
+        const agreement4 = $w('#check4').value;
+        const agreement5 = $w('#check5').value;
+        const agreement6 = $w('#check6').value;
 
-    const indicateIfYouHave = $w('#indicate').value;
-    const hearAboutUs = $w('#hear').value;
-    const anythingElse = $w('#anything').value;
-    const under15 = $w('#under15').value;
-    const whatAge = $w('#age').value;
+        //COLLECTION IN WIX
+        const formData = { questionWeeks, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed, dogsStatus, indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement4, agreement5, agreement6 };
 
-    const agreement1 = $w('#check1').value;
-    const agreement2 = $w('#check2').value;
-    const agreement4 = $w('#check4').value;
-    const agreement5 = $w('#check5').value;
-    const agreement6 = $w('#check6').value;
+        // Save submission to database
+        let trainingSubmission = await saveData(collectionId, formData);
 
-    let values = [];
-    let toInsert = {};
+        // Reduce available spots
+        const status = await lessOne(courseId, collectionId, 'payment');
+        if (!status) {
+            $w('#bookButton').disable();
+            $w('#PayNoT').expand();
+            return;
+        }
 
-    // GOOGLE SHEET
-    values = [payment, questionWeeks, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed, dogsStatus,
-        indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement4, agreement5, agreement6
-    ];
-    //COLLECTION IN WIX
-    toInsert = {
-        payment,
-        questionWeeks,
-        date,
-        fullName,
-        phone,
-        email,
-        fullAddress,
-        dogsName,
-        dogsDob,
-        dogsBreed,
-        dogsStatus,
-        indicateIfYouHave,
-        hearAboutUs,
-        anythingElse,
-        under15,
-        whatAge,
-        agreement1,
-        agreement2,
-        agreement4,
-        agreement5,
-        agreement6
-    };
+        // Create payment session
+        const paymentSession = await createMyPayment(courseInfo.course, total);
 
-    const res = await appendValuesWrapper(values, 'SheetBabyPPS');
-    //console.log(res);
-    await wixData.insert('BabyPPS', toInsert)
-    // let date = new Date()
-    await register()
+        // Start Wix payment process
+        const result = await wixPay.startPayment(paymentSession.id, { showThankYouPage: false });
+        let paymentStatus = "Pending";
+
+        if (result.status === "Successful") {
+            paymentStatus = "Paid";
+            $w('#bookButton').collapse();
+            $w('#text35').expand();
+            $w('#reloadThanks').expand();
+            wixLocation.to('/thank-you');
+        } else if (result.status === "Error") {
+            paymentStatus = "Error";
+        }
+
+        // Update submission with payment status
+        trainingSubmission.payment = paymentStatus;
+
+        // GOOGLE SHEET
+        const sheetValues = [paymentStatus, questionWeeks, date, fullName, phone, email, fullAddress, dogsName, dogsDob, dogsBreed, dogsStatus, indicateIfYouHave, hearAboutUs, anythingElse, under15, whatAge, agreement1, agreement2, agreement4, agreement5, agreement6];
+        // Save info to Google Sheet
+
+        await Promise.all([
+            appendValuesWrapper(sheetValues, googleSheet),
+            updateCollection(collectionId, trainingSubmission),
+            register()
+        ]);
+
+    } catch (error) {
+        console.error("❌ Error in pay():", error);
+        // Optional: show an error message to the user
+    }
 }
 
 //	==================================================================== R E G I S T E R ====================================================================
@@ -349,7 +320,8 @@ async function saveMember() {
 
 //	==================================================================== E M A I L ====================================================================
 export async function getEmail() {
-
+    let dateT = new Date($w('#date').text);
+    let date = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
     await wixData.query("Members").eq('email', $w('#email').value)
         .find()
         .then(async (results) => {
@@ -357,7 +329,7 @@ export async function getEmail() {
                 //console.log(results.items[0])
                 let json = {
                     "idPrivateMember": results.items[0].idPrivateMember,
-                    "date": $w('#date').text,
+                    "date": date,
                     "FullName": results.items[0].fullName,
                     "Mobile": $w('#phone').value,
                     "question": $w('#question').value,
@@ -393,36 +365,15 @@ function delay(time) {
     });
 }
 
-async function lessOne(course) {
-    await wixData.query("Course")
-        .eq("course", course)
-        .find()
-        .then(async (results) => {
-            if (results.items.length > 0) {
-                let plan = results.items[0]; //see item below
-
-                if (plan.numberOfPeople > 0) {
-                    plan.numberOfPeople = plan.numberOfPeople - 1
-                    await wixData.update("Course", plan)
-                }
-
-            } else {
-                // handle case where no matching items found
-            }
-        })
-        .catch((err) => {
-            let errorMsg = err;
-        });
-
-}
-
 async function fullPeople() {
 
     $w('#textValidation1').collapse();
     try {
         checkValidationOneTwo();
+        let dateT = new Date($w('#date').text);
+        let dateC = dateT.getDate() + '/' + (dateT.getMonth() + 1) + '/' + dateT.getFullYear();
 
-        const date = $w('#date').text;
+        const date = dateC;
         const course = "BabyPPS"
         const fullName = $w('#fullName').value;
         const email = $w('#email').value;

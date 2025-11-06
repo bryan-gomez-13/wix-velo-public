@@ -1,7 +1,6 @@
- import { generalQuery, updateCollection } from 'backend/collections.web.js';
- import { uploadBase64Image } from 'backend/functions.web.js';
+ import { generalQuery, updateCollectionAndSendSubmission } from 'backend/collections.web.js';
+ import { uploadBase64Image, documentsString, getFileInfo2, updateDescriptionOfFile } from 'backend/functions.web.js';
  import wixLocationFrontend from "wix-location-frontend";
- import { emailForms } from 'backend/email.web.js';
  import wixData from 'wix-data';
  import { generatePDF } from 'backend/apiIntegration.web.js';
 
@@ -10,6 +9,7 @@
      '#responsibleNameDeclaration',
      '#responsibleSignatureFile',
      '#responsibleSignatureSign',
+     '#responsibleStamp',
  ]
 
  var itemValidationPhysicalSignature = [
@@ -76,7 +76,7 @@
      })
 
      $w('#signatureType').onChange(() => {
-         if ($w('#signatureType').value == 'Digital signature') {
+         if ($w('#signatureType').value == 'Upload Signature') {
              $w('#responsibleSignatureFile').required = true;
              $w('#responsibleSignatureSign').required = false;
 
@@ -102,21 +102,25 @@
 
  async function saveInfo() {
      let dataSubmission = $w('#dataSubmissionItemInfo').getCurrentItem();
+     let pdfUrl = "";
 
-     if (dataSubmission.responsibleSignatureOption == 'Physical Signature') {
+     if (dataSubmission.responsibleSignatureOption == 'Download and Sign Physically') {
          const pdf = await $w('#uploadFile').uploadFiles()
              .catch((uploadError) => console.log(uploadError));
-         dataSubmission.pdf = pdf[0].fileUrl;
 
-         dataSubmission.documents.forEach(item => {
-             if (item.name.includes("Application -")) {
-                 item.url = pdf[0].fileUrl;
-             }
-         });
+         const json = {
+             _id: pdf[0].fileName,
+             parentFolderId: dataSubmission.folderId
+         };
+
+         await updateDescriptionOfFile(json);
+         dataSubmission.pdf = pdf[0].fileUrl;
+         pdfUrl = pdf[0].fileUrl;
+
      } else {
          dataSubmission.responsibleNameDeclaration = $w('#responsibleNameDeclaration').value;
 
-         if ($w('#signatureType').value == 'Digital signature') {
+         if ($w('#signatureType').value == 'Upload Signature') {
              if ($w('#responsibleSignatureFile').value.length > 0) {
                  const dSignatureFile = await $w('#responsibleSignatureFile').uploadFiles()
                      .catch((uploadError) => console.log(uploadError));
@@ -131,41 +135,42 @@
          let formattedDate = now.toISOString().split('T')[0];
          dataSubmission.responsibleDateDeclaration = formattedDate;
 
+         const stampFile = await $w('#responsibleStamp').uploadFiles().catch(console.log);
+         if (stampFile?.length) {
+             const fileInfo = await getFileInfo2(stampFile[0].fileUrl);
+             dataSubmission.responsibleStamp = fileInfo;
+         }
+
          // Create PDF
-         const applicationPDF = await generatePDF(dataSubmission);
+         const applicationPDF = await generatePDF(dataSubmission, dataSubmission.folderId, true);
          dataSubmission.pdf = applicationPDF;
 
-         dataSubmission.documents.push({
-             _id: String((dataSubmission.documents.length + 1)),
-             name: `Application - ${dataSubmission.title}`,
-             url: applicationPDF
-         });
-
-         // Sort documents alphabetically
-         dataSubmission.documents.sort((a, b) => a.name.localeCompare(b.name));
+         pdfUrl = applicationPDF;
      }
+
+     dataSubmission.documents.push({
+         _id: String((dataSubmission.documents.length + 1)),
+         name: `Application - ${dataSubmission.title}`,
+         url: pdfUrl
+     });
 
      dataSubmission.responsibleOk = true;
      dataSubmission.status = 'Sent';
 
+     // Sort documents alphabetically
+     dataSubmission.documents.sort((a, b) => a.name.localeCompare(b.name));
+     dataSubmission.documentsString = await documentsString(dataSubmission.documents)
+
      console.log(1, 'formData', dataSubmission)
 
-     await updateCollection('Formssubmitted', dataSubmission)
+     await updateCollectionAndSendSubmission(dataSubmission).then(async () => {
+         $w('#loadingSaveSubmission').hide()
+         $w('#checkSubmission').show();
 
-     $w('#loadingSaveSubmission').hide()
-     $w('#checkSubmission').show();
+         submissionInfo(dataSubmission._id, label, value);
+         setInterval(() => $w('#checkSubmission').hide(), 2000);
+     })
 
-     setInterval(() => $w('#checkSubmission').hide(), 5000);
-
-     submissionInfo(dataSubmission._id, label, value);
-
-     emailForms({
-         formName: dataSubmission.title,
-         name: dataSubmission.firstName,
-         data: dataSubmission.emailMessage,
-         urlAdmin: `${wixLocationFrontend.baseUrl}/admin?formId=${dataSubmission._id}`,
-         urlApplication: `${wixLocationFrontend.baseUrl}/signature?formId=${dataSubmission._id}&adminPass=${dataSubmission.passwordAdmin}`,
-     });
  }
 
  // ==================================================== STATE SUBMISSION INFO
@@ -175,43 +180,27 @@
          $w('#dataSubmissionItemInfo').onReady(async () => {
              if ($w('#dataSubmissionItemInfo').getTotalCount() > 0) {
                  itemSubmissionInfo = $w('#dataSubmissionItemInfo').getCurrentItem();
-                 console.log(itemSubmissionInfo)
+                 console.log('itemSubmissionInfo', itemSubmissionInfo)
 
-                 if (itemSubmissionInfo.additionalInformation) {
-                     let filterAdditionalInformation = wixData.filter().eq('submission', itemSubmissionInfo._id);
-                     $w('#dataAdditionalInformation').setFilter(filterAdditionalInformation).then(() => {
-                         if ($w('#dataAdditionalInformation').getTotalCount() > 0) {
-                             $w('#aiMessage').expand();
-                             $w('#aiRep').expand();
-                         } else {
-                             $w('#aiMessage').collapse();
-                             $w('#aiRep').collapse();
-                         }
-                     })
-                 } else {
-                     $w('#aiMessage').collapse();
-                     $w('#aiRep').collapse();
-                 }
+                 if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
+                 else $w('#boxRoles').collapse();
 
-                  if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
-                  else $w('#boxRoles').collapse();
+                 if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
+                 else $w('#boxWorkExperience').collapse();
 
-                  if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
-                  else $w('#boxWorkExperience').collapse();
+                 if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
+                 else $w('#boxAcademic').collapse();
 
-                  if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
-                  else $w('#boxAcademic').collapse();
+                 if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
+                 else $w('#boxEnglish').collapse();
 
-                  if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
-                  else $w('#boxEnglish').collapse();
-
-                  if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
-                  else $w('#boxItProfiency').collapse();
+                 if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
+                 else $w('#boxItProfiency').collapse();
 
                  //  if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true) $w('#gDeclaration2').expand(), $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
                  if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true) $w('#gDeclaration2').expand(), $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse(), $w('#boxPhysicalDocument').collapse();
                  else if (itemSubmissionInfo.responsibleSignatureOption == 'Email to director') $w('#boxDeclaration').expand(), $w('#gDeclaration2').collapse(), $w('#boxPhysicalDocument').collapse(), $w('#gDeclaration1').expand(), $w('#btUpdateSubmissionInfo').expand();
-                 else if (itemSubmissionInfo.responsibleSignatureOption == 'Physical Signature') $w('#boxPhysicalDocument').expand();
+                 else if (itemSubmissionInfo.responsibleSignatureOption == 'Download and Sign Physically') $w('#boxPhysicalDocument').expand(), $w('#boxDeclaration').collapse();
 
                  if (label == 'passwordAdmin') $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
 
@@ -228,15 +217,17 @@
                  $w('#repDocuments').data = itemSubmissionInfo.documents;
                  $w('#repDocuments').forEachItem(($item, itemData) => {
                      $item('#documentName').text = itemData.name;
-                     $item('#documentLink').link = itemData.url;
+
+                     const link = (itemData.name.includes('Passport')) ? `https://static.wixstatic.com/media/${(itemData.url.split('/'))[3]}` : itemData.url;
+                     $item('#documentLink').link = link;
                  })
 
                  responsibleDeclaration = (await generalQuery('Form', 'title', itemSubmissionInfo.title))[0].responsibleDeclaration;
-                 console.log(responsibleDeclaration)
 
                  changeHtml();
 
                  $w('#adminStates').changeState('SubmissionInfo');
+
              } else {
                  wixLocationFrontend.to('/');
              }
