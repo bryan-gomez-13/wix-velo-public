@@ -1,5 +1,5 @@
 import { Permissions, webMethod } from "wix-web-module";
-import { getContactInfo, generateFolderDownloadUrl } from 'backend/functions.web.js';
+import { getContactInfo, generateFolderDownloadUrl, getEmailNotifications } from 'backend/functions.web.js';
 import { emailForms, emailSignRequired, emailPhysicalSignature, emailAdditionalInformationAdmin } from 'backend/email.web.js';
 import wixData from 'wix-data';
 
@@ -141,6 +141,13 @@ export const generalQuery2 = webMethod(Permissions.Anyone, async (collectionId, 
     return allItems;
 })
 
+export const getNotificationEmails = webMethod(Permissions.Anyone, async () => {
+    const emailNotifications = (await generalQuery('FormNotifications', 'available', true)).map(item => item.email);
+    const emailIds = await Promise.all(emailNotifications.map(email => getEmailNotifications(email)));
+
+    return emailIds;
+})
+
 // Capitalizes the first letter of a word
 export const getFormInfoAfterSave = webMethod(Permissions.Anyone, async (formId, memberId, type) => {
     return await wixData.query('Formssubmitted').eq('title', formId).eq('memberId', memberId).eq('autoSaveInfo', true).find().then(async (result) => {
@@ -269,7 +276,7 @@ export const updateCollectionAdditionalInfo = webMethod(Permissions.Anyone, asyn
             email: formData.emailAddress,
             submission: formData._id,
             formName: formData.title,
-            folderDownloadUrl : folderInfo
+            folderDownloadUrl: folderInfo
         }
 
         await emailAdditionalInformationAdmin(json);

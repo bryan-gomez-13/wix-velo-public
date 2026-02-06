@@ -9,8 +9,10 @@
 
  $w.onReady(function () {
      if (wixLocationFrontend.query.formId) {
-         submissionInfo(wixLocationFrontend.query.formId)
-         getMember().then(() => filterSubmissions())
+         getMember().then(async () => {
+             await submissionInfo(wixLocationFrontend.query.formId)
+             filterSubmissions()
+         })
          init();
      }
  });
@@ -120,10 +122,11 @@
          formData.documents = documents;
          formData.documentsString = await documentsString(documents);
 
-        console.log('formData',formData)
+         console.log('formData', formData)
 
          await updateCollectionAdditionalInfo(formData).then(async () => {
              $w('#adminStates').changeState('infoOk2');
+             $w('#adminStates').scrollTo();
          })
      }
  }

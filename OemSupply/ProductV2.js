@@ -1,24 +1,43 @@
-import wixData from 'wix-data'
+import wixData from 'wix-data';
 import wixLocation from 'wix-location';
 import { memory } from 'wix-storage';
+import { getCategory, getSubCategory } from 'backend/collections.web.js';
 import { currentMember, authentication } from 'wix-members';
 
-var arrayR = [],
-    arrayC = []
 $w.onReady(function () {
     init();
-    getDropCategory();
     getUser();
     authentication.onLogin(async (member) => {
         init();
-        getDropCategory();
         getUser();
     });
 });
 
 // ================================================= INIT =================================================
 function init() {
-    $w('#fCat').onChange(() => getDropDownTwo());
+    getCategory().then((resultCategory) => {
+        $w('#fCat').options = resultCategory;
+        $w('#fCat').value = 'All';
+        $w('#fCat').enable();
+    });
+
+    $w('#fCat').onChange(() => {
+        $w('#fField0').disable();
+        $w('#fField0').value = 'All';
+        if ($w('#fCat').value !== 'All') {
+            getSubCategory($w('#fCat').value).then((resultSubCategory) => {
+                $w('#fField0').options = resultSubCategory;
+                $w('#fField0').value = 'All';
+                $w('#fField0').enable();
+            })
+        }
+        filterDropDown();
+    })
+
+    $w('#fField0').onChange(() => {
+        filterDropDown();
+    })
+
     $w('#fField0').onChange(() => filterDropDown());
     $w('#fKeyWord').onInput(() => filterDropDown());
 
@@ -35,66 +54,7 @@ function init() {
         })
     })
 }
-// ================================================= GET DROPDOWNS =================================================
-async function getDropCategory() {
-    let products = await wixData.query('ProductsCatalog').ascending('order').ne("100Nett", "100 Nett").limit(1000).find()
-    arrayR = [{ "label": "All", "value": "All" }];
-    dropCat(products, arrayC, "category");
-    while (products.hasNext()) {
-        products = await products.next();
-        dropCat(products, arrayC, "category");
-    }
 
-    //console.log(arrayC)
-    for (let i = 0; i < arrayC.length; i++) {
-        arrayR.push({ label: arrayC[i], value: arrayC[i] })
-    }
-
-    $w('#fCat').enable();
-    $w('#fCat').options = arrayR;
-
-    arrayR = [];
-    arrayC = [];
-}
-
-async function getDropDownTwo() {
-    $w('#fField0').value = "All"
-    $w('#fField0').disable();
-    let products = await wixData.query('ProductsCatalog').eq('category', $w('#fCat').value).ne("100Nett", "100 Nett").ascending('order').limit(1000).find()
-    arrayR = [{ "label": "All", "value": "All" }];
-    dropCat(products, arrayC, "field0");
-    while (products.hasNext()) {
-        products = await products.next();
-        dropCat(products, arrayC, "field0");
-    }
-    //console.log(arrayC)
-    for (let i = 0; i < arrayC.length; i++) {
-        arrayR.push({ label: arrayC[i], value: arrayC[i] })
-    }
-
-    $w('#fField0').enable();
-    $w('#fField0').options = arrayR;
-
-    arrayR = [];
-    arrayC = [];
-
-    filterDropDown();
-}
-
-export function dropCat(products, arrayC, field) {
-    if (products.items.length > 0) {
-        arrayC = getCat(products, arrayC, field);
-    }
-}
-
-export function getCat(products, arrayC, field) {
-    for (let i = 0; i < products.items.length; i++) {
-        if (arrayC.includes(products.items[i][field]) == false) {
-            arrayC.push(products.items[i][field])
-        }
-    }
-    return arrayC;
-}
 // ================================================= FILTER =================================================
 function filterDropDown() {
     let sort = wixData.sort();

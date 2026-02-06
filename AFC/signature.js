@@ -101,6 +101,9 @@
  }
 
  async function saveInfo() {
+     $w('#adminStates').changeState('Loading');
+     $w('#adminStates').scrollTo();
+     $w('#slider').value = 25;
      let dataSubmission = $w('#dataSubmissionItemInfo').getCurrentItem();
      let pdfUrl = "";
 
@@ -117,8 +120,11 @@
          dataSubmission.pdf = pdf[0].fileUrl;
          pdfUrl = pdf[0].fileUrl;
 
-     } else {
+         $w('#slider').value = 50;
+
+     } else if (dataSubmission.responsibleSignatureOption == "Email to director") {
          dataSubmission.responsibleNameDeclaration = $w('#responsibleNameDeclaration').value;
+         dataSubmission.dResponsibleDeclaration = $w('#dResponsibleDeclaration').html;
 
          if ($w('#signatureType').value == 'Upload Signature') {
              if ($w('#responsibleSignatureFile').value.length > 0) {
@@ -136,17 +142,20 @@
          dataSubmission.responsibleDateDeclaration = formattedDate;
 
          const stampFile = await $w('#responsibleStamp').uploadFiles().catch(console.log);
-         if (stampFile?.length) {
-             const fileInfo = await getFileInfo2(stampFile[0].fileUrl);
-             dataSubmission.responsibleStamp = fileInfo;
-         }
+
+         const fileInfo = stampFile?.length ? await getFileInfo2(stampFile[0].fileUrl) : '';
+         dataSubmission.responsibleStamp = fileInfo;
 
          // Create PDF
          const applicationPDF = await generatePDF(dataSubmission, dataSubmission.folderId, true);
          dataSubmission.pdf = applicationPDF;
 
          pdfUrl = applicationPDF;
+
+         $w('#slider').value = 50;
      }
+
+     console.log(pdfUrl)
 
      dataSubmission.documents.push({
          _id: String((dataSubmission.documents.length + 1)),
@@ -160,12 +169,15 @@
      // Sort documents alphabetically
      dataSubmission.documents.sort((a, b) => a.name.localeCompare(b.name));
      dataSubmission.documentsString = await documentsString(dataSubmission.documents)
+     $w('#slider').value = 75;
 
      console.log(1, 'formData', dataSubmission)
 
      await updateCollectionAndSendSubmission(dataSubmission).then(async () => {
          $w('#loadingSaveSubmission').hide()
          $w('#checkSubmission').show();
+
+         $w('#slider').value = 100;
 
          submissionInfo(dataSubmission._id, label, value);
          setInterval(() => $w('#checkSubmission').hide(), 2000);
@@ -180,19 +192,6 @@
          $w('#dataSubmissionItemInfo').onReady(async () => {
              if ($w('#dataSubmissionItemInfo').getTotalCount() > 0) {
                  itemSubmissionInfo = $w('#dataSubmissionItemInfo').getCurrentItem();
-                 console.log('itemSubmissionInfo', itemSubmissionInfo)
-
-                 if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
-                 else $w('#boxRoles').collapse();
-
-                 if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
-                 else $w('#boxWorkExperience').collapse();
-
-                 if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
-                 else $w('#boxAcademic').collapse();
-
-                 if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
-                 else $w('#boxEnglish').collapse();
 
                  if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
                  else $w('#boxItProfiency').collapse();
@@ -203,15 +202,6 @@
                  else if (itemSubmissionInfo.responsibleSignatureOption == 'Download and Sign Physically') $w('#boxPhysicalDocument').expand(), $w('#boxDeclaration').collapse();
 
                  if (label == 'passwordAdmin') $w('#gDeclaration1').collapse(), $w('#btUpdateSubmissionInfo').collapse();
-
-                 if (itemSubmissionInfo.rrPreviousPosition && itemSubmissionInfo.rrPreviousPosition == 'Applicable') $w('#gPreviousRoles').expand();
-                 else $w('#gPreviousRoles').collapse();
-
-                 if (itemSubmissionInfo.apqEnrolled && itemSubmissionInfo.apqEnrolled == 'Applicable') $w('#gAcademic').expand();
-                 else $w('#gAcademic').collapse();
-
-                 if (itemSubmissionInfo.elpInternationallyRecognised && itemSubmissionInfo.elpInternationallyRecognised == 'Yes') $w('#gEnglish').expand();
-                 else $w('#gEnglish').collapse();
 
                  $w('#repDocuments').data = [];
                  $w('#repDocuments').data = itemSubmissionInfo.documents;
@@ -226,7 +216,8 @@
 
                  changeHtml();
 
-                 $w('#adminStates').changeState('SubmissionInfo');
+                 if (itemSubmissionInfo.responsibleOk) $w('#adminStates').changeState('SignOk');
+                 else $w('#adminStates').changeState('SubmissionInfo');
 
              } else {
                  wixLocationFrontend.to('/');

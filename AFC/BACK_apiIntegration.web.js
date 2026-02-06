@@ -3,30 +3,31 @@ import wixSecretsBackend from "wix-secrets-backend";
 import { folders, files } from "wix-media.v2";
 import { elevate } from "wix-auth";
 import { getFileInfo, getFileInfo2 } from 'backend/functions.web.js';
+import { generalQuery } from 'backend/collections.web.js';
 
 const baseUrlAU = 'https://api-au.craftmypdf.com/';
 const baseUrl = 'https://api.craftmypdf.com/';
 
 // AFC
-// const templateId1 ="96e77b23654971e2";
-// const templateId2 ="0c777b23654344c2";
+// const templateId2 ="c8977b23653c4628";
 
 // Yourweb
-const templateId1 = "83177b2395fc36b2";
-const templateId2 = "06377b23667a6e6a";
+const templateAFC = "dc177b23d316d324";
+const templateIdYourweb = "ec977b23d8823588";
 
 export const generatePDF = webMethod(Permissions.Anyone, async (formData, folderId, application) => {
     const pdfData = await generateData2(formData);
     console.log('pdfData', pdfData)
-    // const api_key = await wixSecretsBackend.getSecret("ApiKey");
-    const api_key = await wixSecretsBackend.getSecret("ApiKeyYourweb");
+    const api_key = await wixSecretsBackend.getSecret("ApiKey");
+    // const api_key = await wixSecretsBackend.getSecret("ApiKeyYourweb");
+    let template = templateAFC;
 
     const json_payload = JSON.stringify({
         "data": pdfData,
         "output_file": "output.pdf",
         "export_type": "json",
         "expiration": 1000,
-        "template_id": templateId2
+        "template_id": template
     });
 
     const url = `${baseUrl}v1/create`;

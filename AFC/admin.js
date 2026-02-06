@@ -42,6 +42,7 @@
          $item('#subName').text = `${itemData.firstName} ${itemData.surname}`;
          //  $item('#status').text = `Status: ${itemData.status}`;
          $item('#boxSubmissions').onClick(() => submissionInfo(itemData._id));
+         $item('#brReadMore').onClick(() => submissionInfo(itemData._id));
      })
 
      // STATE SUBMISSIONS INFO
@@ -75,7 +76,6 @@
          else dataSubmission.history.push(json);
 
          // Run both updates in parallel
-         console.log('dataSubmission', dataSubmission)
          await Promise.all([
              updateStatus(dataSubmission),
              updateCollection('Formssubmitted', dataSubmission)
@@ -93,6 +93,16 @@
              $w('#statusSubmitted').enable();
          }, 5000);
 
+     })
+
+     $w('#checkApplication').onChange(() => {
+         if ($w('#checkApplication').value == 'Open full application as PDF') {
+             $w('#btApplicationPdf').expand();
+             $w('#gHtml').collapse();
+         } else {
+             $w('#btApplicationPdf').collapse();
+             $w('#gHtml').expand();
+         }
      })
 
      // STATE SEND EMAIL
@@ -209,61 +219,9 @@
      $w('#dataSubmissionItemInfo').setFilter(filter).then(() => {
          $w('#dataSubmissionItemInfo').onReady(() => {
              itemSubmissionInfo = $w('#dataSubmissionItemInfo').getCurrentItem();
-             console.log('itemSubmissionInfo', itemSubmissionInfo)
-
-             if (itemSubmissionInfo.additionalInformation) {
-                 let filterAdditionalInformation = wixData.filter().eq('submission', itemSubmissionInfo._id);
-                 $w('#dataAdditionalInformation').setFilter(filterAdditionalInformation).then(() => {
-                     if ($w('#dataAdditionalInformation').getTotalCount() > 0) {
-                         $w('#aiMessage').expand();
-                         $w('#aiRep').expand();
-                     } else {
-                         $w('#aiMessage').collapse();
-                         $w('#aiRep').collapse();
-                     }
-                 })
-             } else {
-                 $w('#aiMessage').collapse();
-                 $w('#aiRep').collapse();
-             }
-
              $w('#statusSubmitted').value = itemSubmissionInfo.status;
-
-             if (itemSubmissionInfo.rolesResponsibilities) $w('#boxRoles').expand();
-             else $w('#boxRoles').collapse();
-
-             if (itemSubmissionInfo.workExperience) $w('#boxWorkExperience').expand();
-             else $w('#boxWorkExperience').collapse();
-
-             if (itemSubmissionInfo.academicProfessionalQualifications) $w('#boxAcademic').expand();
-             else $w('#boxAcademic').collapse();
-
-             if (itemSubmissionInfo.englishLanguageProficiency) $w('#boxEnglish').expand();
-             else $w('#boxEnglish').collapse();
-
-             if (itemSubmissionInfo.itProficiency) $w('#boxItProfiency').expand();
-             else $w('#boxItProfiency').collapse();
-
-             if (itemSubmissionInfo.responsibleOk && itemSubmissionInfo.responsibleOk == true && itemSubmissionInfo.applicantType !== 'Independent – Applicant & their organization') $w('#gDeclaration2').expand();
-             else $w('#gDeclaration2').collapse();
-
-             if (itemSubmissionInfo.rrPreviousPosition && itemSubmissionInfo.rrPreviousPosition == 'Applicable') $w('#gPreviousRoles').expand();
-             else $w('#gPreviousRoles').collapse();
-
-             if (itemSubmissionInfo.apqEnrolled && itemSubmissionInfo.apqEnrolled == 'Applicable') $w('#gAcademic').expand();
-             else $w('#gAcademic').collapse();
-
-             if (itemSubmissionInfo.elpInternationallyRecognised && itemSubmissionInfo.elpInternationallyRecognised == 'Yes') $w('#gEnglish').expand();
-             else $w('#gEnglish').collapse();
-
-             $w('#repDocuments').data = [];
-             $w('#repDocuments').data = itemSubmissionInfo.documents;
-             $w('#repDocuments').forEachItem(($item, itemData) => {
-                 $item('#documentName').text = itemData.name;
-
-                 const link = (itemData.name.includes('Passport')) ? `https://static.wixstatic.com/media/${(itemData.url.split('/'))[3]}` : itemData.url;
-                 $item('#documentLink').link = link;
-             })
+             if (itemSubmissionInfo.ai2CV) $w('#btCV').expand();
+             else $w('#btCV').collapse();
          })
      });
 
@@ -277,11 +235,11 @@
      $w('#adminStates').changeState('SendEmail');
  }
 
- function sendEmailToGetAdditionalInfo() {
+ async function sendEmailToGetAdditionalInfo() {
      let item = $w('#dataSubmissionItemInfo').getCurrentItem();
      item.additionalInformation = true;
 
-     updateCollection('Formssubmitted', item);
+     await updateCollection('Formssubmitted', item);
 
      const json = {
          emailId: item.memberId,
@@ -298,6 +256,8 @@
          $w('#seSubject').resetValidityIndication();
          $w('#seMessage').resetValidityIndication();
          $w('#seMessageSendEmail').show();
+         $w('#adminStates').changeState('SubmissionInfo');
+         $w('#adminStates').scrollTo();
          setTimeout(() => $w('#seMessageSendEmail').hide(), 3000);
      })
  }
@@ -336,7 +296,8 @@
              memberSubmissionInfo = $w('#dataMembersInfo').getCurrentItem();
 
              if (memberSubmissionInfo.forms) {
-                 $w('#mRepSubmissions').data = memberSubmissionInfo.forms
+                 $w('#mRepSubmissions').data = memberSubmissionInfo.forms;
+
                  $w('#mRepSubmissions').onItemReady(($item, itemData) => {
                      $item('#mFormNameInfo').text = itemData.formName;
                      $item('#mStatusInfo').text = itemData.status;

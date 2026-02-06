@@ -2,75 +2,81 @@
 import wixData from 'wix-data';
 import { currentMember } from 'wix-members-frontend';
 import wixUsers from 'wix-users';
-let doctorsID, memberID;
 import { getTemplates } from 'backend/clickSend.jsw'
 import { sendChatMessage } from 'backend/sendChatMessage.jsw';
-
 import { sendCertificateToPatientYourweb } from 'backend/generatePdf.jsw'
 import { queryDoctorForContactID } from 'backend/emailContact.jsw'
+import { generalQuery } from 'backend/collections.web.js';
 
 let smallTimeoutValue = 2500;
 let originalTillDate;
 
+var doctorsID, memberID;
+
 $w.onReady(async function () {
+    // Original
+    // currentMember.getMember({ fieldsets: ['FULL'] }).then((member) => {
+    //         console.log(member);
+    //         memberID = member._id;
+    //         const fullName = `${member.contactDetails.firstName} ${member.contactDetails.lastName}`;
+    //         $w('#doctorMainTxt').text = `Dr. ${member.contactDetails.lastName}'s Dashboard`
+    //         getMemberInfo();
+    //     })
+    //     .catch((error) => {
+    //         console.error(error);
+    //     });
 
-    let options = {
-        fieldsets: ['FULL']
-    }
-
-    currentMember.getMember(options)
-        .then((member) => {
-            console.log(member);
-            memberID = member._id;
-            const fullName = `${member.contactDetails.firstName} ${member.contactDetails.lastName}`;
-            $w('#doctorMainTxt').text = `Dr. ${member.contactDetails.lastName}'s Dashboard`
-
-            queryDoctors()
-                .then((doctorList) => {
-                    const foundDoctor = doctorList.find(doctor => doctor.doctorsId === memberID);
-
-                    if (foundDoctor) {
-                        console.log(`The _id associated with memberID ${memberID} is ${foundDoctor._id}`);
-                        doctorsID = foundDoctor._id;
-                        loadDoctorsData(doctorsID);
-                    } else {
-                        console.log(`No matching record found for memberID ${memberID}`);
-                    }
-
-                });
-
-            // Query the database for SMS history
-            wixData.query("ChatMessages")
-                .eq('contactId', memberID)
-                .find()
-                .then((results) => {
-                    let items = results.items;
-                    $w("#patientDetailsRepeater").data = items;
-                    $w("#patientDetailsRepeater").onItemReady(($item, itemData, index) => {
-                        console.log(itemData.direction);
-                        //$item("#timestamp").text = itemData.timestamp;
-                        $item("#direction").text = itemData.direction;
-                        $item("#from").text = itemData.from;
-                        $item("#message").text = itemData.message;
-                    });
-                })
-                .catch((err) => {
-                    console.log(err);
-                });
-
-            //loadDoctorsData(doctorsID)
-
-        })
-        .catch((error) => {
-            console.error(error);
-        });
-
+    // Only For Test
+    memberID = $w('#memberId').value;
+    $w('#btSearch').onClick(() => {
+        memberID = $w('#memberId').value;
+        getMemberInfo()
+    });
+    getMemberInfo();
 });
 
+function getMemberInfo() {
+    queryDoctors().then((doctorList) => {
+        console.log('doctorList', doctorList)
+        console.log('memberID', memberID)
+        console.log('memberID', $w('#memberId').value)
+        const foundDoctor = doctorList.find(doctor => doctor.doctorsId === memberID);
+        console.log('foundDoctor', foundDoctor)
+
+        if (foundDoctor) {
+            console.log(`The _id associated with memberID ${memberID} is ${foundDoctor._id}`);
+            doctorsID = foundDoctor._id;
+            console.log("doctorsID", doctorsID)
+            loadDoctorsData(doctorsID);
+        } else {
+            console.log(`No matching record found for memberID ${memberID}`);
+        }
+
+    });
+
+    // generalQuery("DoctorsHistoryPhoneNumber", "memberId", memberID).then((doctorInfoBack) => {
+    //     if (doctorInfoBack.items.length > 0) {
+    //         const doctorInfo = doctorInfoBack.items[0];
+    //         // Query the database for SMS history
+    //         wixData.query("ChatMessages").eq('contactId', memberID)
+    //             //.hasSome('from', doctorInfo.phoneNumbers)
+    //             .find().then((results) => {
+    //                 let items = results.items;
+    //                 $w('#patientDetailsRepeater').data = items;
+    //                 $w("#patientDetailsRepeater").onItemReady(($item, itemData, index) => {
+    //                     //$item("#timestamp").text = itemData.timestamp;
+    //                     $item("#direction").text = itemData.direction;
+    //                     $item("#from").text = itemData.from;
+    //                     $item("#message").text = itemData.message;
+    //                 });
+    //                 $w("#patientDetailsRepeater").expand();
+    //             }).catch((err) => { console.log(err); });
+    //     }
+    // })
+}
+
 export function queryDoctors() {
-    let options = {
-        suppressAuth: true
-    }
+    let options = { suppressAuth: true }
 
     return wixData.query("DoctorsDatabase")
         .find(options)
@@ -89,24 +95,56 @@ export function queryDoctors() {
         });
 }
 
-export function loadDoctorsData(doctorsID) {
+export async function loadDoctorsData(doctorsID) {
     resultsLeft("Number of Approvals Left Loading...", smallTimeoutValue)
 
-    let options = {
-        suppressAuth: true
-    }
+    let options = { suppressAuth: true }
+
+    // let results = await wixData.query("MainCertificateDatabase")
+    //     .include("tempDoctorId")
+    //     .eq("tempDoctorId", doctorsID)
+    //     // .ne("rejectedStatus", true)
+    //     // .ne("approvedStatus", true)
+    //     .limit(1000)
+    //     .find(options)
+
+    // let allItems = results.items;
+    // while (results.hasNext()) {
+    //     results = await results.next();
+    //     allItems = allItems.concat(results.items);
+    // }
+
+    // if (allItems.length > 0) {
+    //     let items = allItems;
+    //     console.log(items);
+    //     $w('#patientDetailsRepeater').data = items;
+    //     $w('#patientDetailsRepeater').expand();
+    //     setTimeout(() => {
+    //         resultsLeft(`${items.length} number of approvals left`, smallTimeoutValue)
+    //         $w('#patientDetailsRepeater').expand();
+    //     }, 1500);
+    // } else {
+    //     console.log("nothing found");
+    //     resultsLeft("No Approvals Left", smallTimeoutValue)
+    //     $w('#patientDetailsRepeater').collapse();
+    // }
+
+    //return allItems;
 
     wixData.query("MainCertificateDatabase")
         .include("tempDoctorId")
         .eq("tempDoctorId", doctorsID)
         .ne("rejectedStatus", true)
         .ne("approvedStatus", true)
+        .descending("_updatedDate")
         .find(options)
         .then((results) => {
+            console.log("Items", results.items)
             if (results.items.length > 0) {
                 let items = results.items;
                 console.log(items);
                 $w('#patientDetailsRepeater').data = items;
+                $w('#patientDetailsRepeater').expand();
                 setTimeout(() => {
                     resultsLeft(`${items.length} number of approvals left`, smallTimeoutValue)
                     $w('#patientDetailsRepeater').expand();
@@ -174,8 +212,9 @@ export function patientDetailsRepeater_itemReady($item, itemData, index) {
         $item('#tillDateFinal').text = `Till Date: ${itemData.tillDate}`;
 
         $item('#messageToPatient').onClick(() => {
-            $item('#group71').expand()
-            $item('#group73').expand()
+            $item('#group71').expand();
+            $item('#boxChatHistory').expand();
+            // $item('#group73').expand()
         })
 
         $item('#sendButton').onClick(async () => {
@@ -186,7 +225,7 @@ export function patientDetailsRepeater_itemReady($item, itemData, index) {
                 const message = $item("#textBox1").value;
 
                 $item('#sendButton').label = "Loading..."
-                const response = await sendChatMessage(memberId, `${itemData.phone}`, message || "", itemData._id)
+                const response = await sendChatMessage(memberId, `${itemData.phone}`, message || "")
                 console.log("response", response);
                 $item("#sendButton").label = "Send"
             } catch (error) {
@@ -256,31 +295,70 @@ export function patientDetailsRepeater_itemReady($item, itemData, index) {
         updateTillDate(tillDate, itemData);
     });
 
-    $item('#approveBtn').onClick(() => {
+    let isProcessing = false;
 
-        console.log("approval btn clicked");
-        let doctorsComments = $item('#doctorComments').value;
+    $item('#approveBtn').onClick(async () => {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        $item('#approveBtn').disable();
+        $item('#rejectBtn').disable();
+
+        const doctorsComments = $item('#doctorComments').value;
 
         if (!doctorsComments) {
-            loadMsgBoxTxt($item('#msgBoxTxt'), `No comments Added`, smallTimeoutValue);
-        } else {
-            loadMsgBoxTxt($item('#msgBoxTxt'), `Comments Being Approved. Please wait.`, smallTimeoutValue);
-            updateDoctorComments(doctorsComments, "approved", itemData);
+            loadMsgBoxTxt($item('#msgBoxTxt'), `No comments added`, smallTimeoutValue);
+            isProcessing = false;
+            $item('#approveBtn').enable();
+            $item('#rejectBtn').enable();
+            return;
         }
 
+        loadMsgBoxTxt(
+            $item('#msgBoxTxt'),
+            `Comments being approved. Please wait.`,
+            smallTimeoutValue
+        );
+
+        try {
+            await updateDoctorComments(doctorsComments, "approved", itemData);
+        } finally {
+            isProcessing = false;
+            $item('#approveBtn').enable();
+            $item('#rejectBtn').enable();
+        }
     });
 
-    $item('#rejectBtn').onClick(() => {
+    $item('#rejectBtn').onClick(async () => {
+        if (isProcessing) return;
+        isProcessing = true;
 
-        let doctorsComments = $item('#doctorComments').value;
+        $item('#approveBtn').disable();
+        $item('#rejectBtn').disable();
+
+        const doctorsComments = $item('#doctorComments').value;
 
         if (!doctorsComments) {
-            loadMsgBoxTxt($item('#msgBoxTxt'), `No comments Added`, smallTimeoutValue);
-        } else {
-            loadMsgBoxTxt($item('#msgBoxTxt'), `Comments Being Approved. Please wait.`, smallTimeoutValue);
-            updateDoctorComments(doctorsComments, "rejected", itemData);
+            loadMsgBoxTxt($item('#msgBoxTxt'), `No comments added`, smallTimeoutValue);
+            isProcessing = false;
+            $item('#approveBtn').enable();
+            $item('#rejectBtn').enable();
+            return;
         }
 
+        loadMsgBoxTxt(
+            $item('#msgBoxTxt'),
+            `Comments being rejected. Please wait.`,
+            smallTimeoutValue
+        );
+
+        try {
+            await updateDoctorComments(doctorsComments, "rejected", itemData);
+        } finally {
+            isProcessing = false;
+            $item('#approveBtn').enable();
+            $item('#rejectBtn').enable();
+        }
     });
 
     $item('#patientHistoryBtn').onClick(() => {
@@ -291,6 +369,54 @@ export function patientDetailsRepeater_itemReady($item, itemData, index) {
 
     });
 
+    generalQuery("PatientHistoryPhoneNumber", "patientId", itemData._id).then((patientInfoBack) => {
+        if (patientInfoBack.items.length > 0) {
+            const patientInfo = patientInfoBack.items[0];
+            // Query the database for SMS history
+            wixData.query("ChatMessages").hasSome('from', patientInfo.phoneNumbers).find().then((results) => {
+                if (results.items.length > 0) {
+                    let items = results.items;
+
+                    const chatHtml = formatChatMessages(items);
+                    $item('#chatHistory').html = chatHtml;
+                    $item('#messageEmpty').collapse();
+                    $item('#chatHistory').expand();
+                }
+
+            }).catch((err) => { console.log(err); });
+        } else {
+            $item('#messageEmpty').expand();
+            $item('#chatHistory').collapse();
+        }
+    })
+
+}
+
+function formatChatMessages(messages) {
+    return messages.map(({ timestamp, direction, message }) => {
+        const formattedDate = new Date(timestamp).toLocaleString("es-CO", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        });
+
+        const color = direction === "sent" ? "#0D72C5" : "#F40A0A";
+
+        return `
+            <p class="wixui-rich-text__text" style="font-size:16px;">
+                <span style="font-weight:bold;" class="wixui-rich-text__text">${formattedDate}&nbsp;</span>&nbsp;
+                <span style="color:${color};" class="wixui-rich-text__text">
+                    <span style="font-weight:bold;" class="wixui-rich-text__text">${direction}&nbsp;</span>
+                </span>
+                <span style="font-weight:normal;" class="wixui-rich-text__text">
+                    <span style="color:#000000;" class="wixui-rich-text__text">${message}</span>
+                </span>
+            </p>
+        `;
+    }).join("\n");
 }
 
 let idToUpdateForTillDate = "";
@@ -329,65 +455,51 @@ export function loadMsgBoxTxt($msgBoxTxt, msgValue, smallTimeoutValue) {
     }, smallTimeoutValue);
 }
 
-export function updateDoctorComments(doctorsComments, status, itemData) {
+export async function updateDoctorComments(doctorsComments, status, itemData) {
+    try {
+        const options = { suppressAuth: true };
 
-    let doctorDBID = itemData.tempDoctorId._id;
-    console.log(itemData);
-    console.log(`Doctors ID in main database is ${doctorDBID}`);
-    let doctorsList = [{
-        "_id": itemData.tempDoctorId._id, // "0083821b-8e78-400a-bfb7-90d279bc6dbe",
-        "doctorsName": itemData.tempDoctorId.doctorsName, // "Dr. Jaosh Sethna",
-        "doctorSignature": itemData.tempDoctorId.doctorSignature, // "wix:image://v1/f45dfa_9b0cb65127c947218d96052326c39a25~mv2.png/phone%20icon.png#originWidth=155&originHeight=155",
-        "doctorsId": itemData.tempDoctorId.doctorsId, //"56df28b0-9be9-40c9-88a7-8069132ccd3b",
-        "doctorProviderNumber": itemData.tempDoctorId.doctorProviderNumber, //" MBA Provider Number 666666",
-        "doctorQualification": itemData.tempDoctorId.doctorQualification, // "BBA Dr"
-        "doctorahpraNumber": itemData.tempDoctorId.ahpraNumber
-    }]
-    console.log(doctorsList)
+        const item = await wixData.get(
+            "MainCertificateDatabase",
+            itemData._id,
+            options
+        );
 
-    let options = {
-        suppressAuth: true
+        item.doctorsComments = doctorsComments;
+
+        if (status === "approved") {
+            item.approvedStatus = true;
+        } else if (status === "rejected") {
+            item.rejectedStatus = true;
+        }
+
+        const result = await wixData.update(
+            "MainCertificateDatabase",
+            item, { suppressAuth: true, suppressHooks: true }
+        );
+
+        $w('#patientDetailsRepeater').collapse();
+        resultsLeft("Refreshing Database", smallTimeoutValue);
+        loadDoctorsData(doctorsID);
+
+        if (item.rejectedStatus === true) {
+            await sendCertificateToPatientYourweb(item, [{
+                _id: itemData.tempDoctorId._id,
+                doctorsName: itemData.tempDoctorId.doctorsName,
+                doctorSignature: itemData.tempDoctorId.doctorSignature,
+                doctorsId: itemData.tempDoctorId.doctorsId,
+                doctorProviderNumber: itemData.tempDoctorId.doctorProviderNumber,
+                doctorQualification: itemData.tempDoctorId.doctorQualification,
+                doctorahpraNumber: itemData.tempDoctorId.ahpraNumber
+            }]);
+        }
+
+        return result;
+
+    } catch (error) {
+        console.error("Error updating doctor comments:", error);
+        throw error;
     }
-
-    wixData.get("MainCertificateDatabase", itemData._id, options)
-        .then((item) => {
-
-            item.doctorsComments = doctorsComments;
-            if (status === "approved") {
-                item.approvedStatus = true
-            } else if (status === "rejected") {
-                item.rejectedStatus = true
-            }
-            wixData.update("MainCertificateDatabase", item, options)
-                .then((results) => {
-                    console.log(results); //see item below
-                    $w('#patientDetailsRepeater').collapse();
-                    resultsLeft("Refreshing Database", smallTimeoutValue)
-                    sendCertificateToPatientYourweb(item, doctorsList);
-                    loadDoctorsData(doctorsID);
-                })
-                .catch((err) => {
-                    console.log(err);
-                });
-
-        })
-        .catch((err) => {
-            console.log(err);
-        });
-
-    /*
-    queryDoctorForContactID(doctorDBID)
-        .then((doctorsList) => {
-
-            
-            
-
-        })
-        .catch((err) => {
-            console.log(err);
-        });
-        */
-
 }
 
 export function resultsLeft(msgValue, timeout) {

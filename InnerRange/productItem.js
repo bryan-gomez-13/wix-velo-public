@@ -1,5 +1,5 @@
 import { session } from 'wix-storage-frontend';
-import { relatedProducts } from 'backend/collections.web.js'
+import { relatedProducts, getDropdownsDocuments } from 'backend/collections.web.js'
 import wixLocationFrontend from 'wix-location-frontend';
 import wixData from 'wix-data';
 
@@ -38,7 +38,7 @@ $w.onReady(function () {
         if (item.orderingOptions) menuBox.push({ _id: "2", label: "Ordering Options", box: "orderingOptions" });
 
         if (item.videosUrlMedia) {
-            menuBox.push({ _id: "5", label: "Media", box: "media" });
+            menuBox.push({ _id: "6", label: "Media", box: "media" });
             let media = item.videosUrlMedia.split(',');
             //let gallery = media.map(video => ({ "type": "video", "src": video.trim() }));
             let gallery2 = media.map(video => ({ "type": "video", "src": video.trim(), _id: generateRandomId(5) }));
@@ -57,24 +57,37 @@ $w.onReady(function () {
 
         boxMenuF(menuBox);
 
-        $w('#dataDocument').onReady(() => {
-            //console.log($w('#dataDocument').getTotalCount())
-            if ($w('#dataDocument').getTotalCount() > 0) menuBox.push({ _id: "3", label: "Documents", box: "documents" });
+        $w('#dataDataSheets').onReady(() => {
+            if ($w('#dataDataSheets').getTotalCount() > 0) menuBox.push({ _id: "3", label: "Datasheets", box: "datasheets" });
             boxMenuF(menuBox);
-            $w('#repDocument').onItemReady(($item, itemData, index) => {
+            $w('#repDatasheets').onItemReady(($item, itemData, index) => {
                 let fileName = itemData.fileName.replace(/ /g, '-')
                 let url = itemData.document + '?dn=' + fileName;
-                $item('#documentDownload').link = url;
+                $item('#datasheetsDownload').link = url;
             })
         })
 
-        $w('#dataSoftware').onReady(() => {
-            if ($w('#dataSoftware').getTotalCount() > 0) menuBox.push({ _id: "4", label: "Software & Firmware", box: "softwareFirmware" });
+        $w('#dataManualAndGuides').onReady(() => {
+            //console.log($w('#dataDocument').getTotalCount())
+            if ($w('#dataManualAndGuides').getTotalCount() > 0) menuBox.push({ _id: "4", label: "Manuals & Guides", box: "manualsAndGuides" });
             boxMenuF(menuBox);
-            $w('#repSoftware').onItemReady(($item, itemData, index) => {
+
+            $w('#repManualAndGuides').onItemReady(($item, itemData, index) => {
                 let fileName = itemData.fileName.replace(/ /g, '-')
                 let url = itemData.document + '?dn=' + fileName;
-                $item('#softwareDownload').link = url;
+                $item('#manualAndGuidesDownload').link = url;
+            })
+        })
+
+        $w('#dataBrochures').onReady(() => {
+            //console.log($w('#dataDocument').getTotalCount())
+            if ($w('#dataBrochures').getTotalCount() > 0) menuBox.push({ _id: "5", label: "Brochures", box: "brochures" });
+            boxMenuF(menuBox);
+
+            $w('#repBrochure').onItemReady(($item, itemData, index) => {
+                let fileName = itemData.fileName.replace(/ /g, '-')
+                let url = itemData.document + '?dn=' + fileName;
+                $item('#brochureDownload').link = url;
             })
         })
     })
@@ -107,4 +120,10 @@ function generateRandomId(length) {
         result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
+}
+
+function filterDocuments(filterItem, itemId) {
+    console.log(filterItem, itemId)
+    let filter = wixData.filter().eq('type', 'Document').hasSome('products', itemId).eq('subCategory', filterItem);
+    $w('#dataDocument').setFilter(filter)
 }

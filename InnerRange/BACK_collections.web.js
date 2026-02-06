@@ -20,6 +20,16 @@ export const saveGuestRSVPs = webMethod(Permissions.Anyone, async (productInfo) 
     }).catch((err) => console.log(err))
 })
 // ==================================================================== READ
+export const getAllCollection = webMethod(Permissions.Anyone, async (collectionId) => {
+    let results = await wixData.query(collectionId).limit(100).find();
+    let allItems = results.items;
+    while (results.hasNext()) {
+        results = await results.next();
+        allItems = allItems.concat(results.items);
+    }
+    return allItems;
+})
+
 export const generalQuery = webMethod(Permissions.Anyone, async (collectionId, field, value) => {
     let results = await wixData.query(collectionId).eq(field, value).limit(100).find();
     let allItems = results.items;
@@ -29,6 +39,39 @@ export const generalQuery = webMethod(Permissions.Anyone, async (collectionId, f
     }
     return allItems;
 })
+
+export const getDropdownOptions_Array = webMethod(Permissions.Anyone, async (collectionId, field) => {
+    // Fetch the initial batch of items
+    let results = await wixData.query(collectionId).limit(100).find();
+    let allItems = results.items;
+
+    // Continue fetching the next pages if there are more results
+    while (results.hasNext()) {
+        results = await results.next();
+        allItems = allItems.concat(results.items);
+    }
+
+    // Extract all values from the array field, flatten and remove duplicates
+    const allValues = allItems
+        .map(item => item[field]) // Get the array for each item
+        .filter(Array.isArray) // Ensure it's an array
+        .flat() // Flatten to a single array
+        .filter(Boolean); // Remove null/undefined/empty
+
+    const uniqueValues = [...new Set(allValues)];
+
+    // Sort alphabetically
+    const sortedValues = uniqueValues.sort((a, b) => a.localeCompare(b));
+
+    // Format each value as { label, value }
+    const options = sortedValues.map(value => ({
+        label: value,
+        value: value
+    }));
+
+    // Add "All" option at the beginning
+    return [{ label: "All", value: "All" }, ...options];
+});
 
 export const getDropdownJobsOptions_Repeater = webMethod(Permissions.Anyone, async (collectionId, field, filterField, filterValue) => {
     // Fetch the initial batch of items
@@ -67,8 +110,8 @@ export const getDropdownJobsOptions_Repeater = webMethod(Permissions.Anyone, asy
     });
 
     // Add "All" option at the beginning
-    // return options
-    return [{ label: "All", value: "All", _id: "all" }, ...options];
+    return options
+    // return [{ label: "All", value: "All", _id: "all" }, ...options];
 });
 
 export const getChannelInfo = webMethod(Permissions.Anyone, async (collectionId, type, category, subCategory, search) => {
@@ -167,6 +210,10 @@ export const seoReport = webMethod(Permissions.Anyone, async () => {
 
 })
 // ==================================================================== UPDATE
+export const updateCollection = webMethod(Permissions.Anyone, async (collectionId, json) => {
+    await wixData.update(collectionId, json, wixDataOptions);
+})
+
 export const updateImages = webMethod(Permissions.Anyone, async () => {
     return await wixData.query("Products").isEmpty("mediagallery").find().then(async (result) => {
         let items = result.items;

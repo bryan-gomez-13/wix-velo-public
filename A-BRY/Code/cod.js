@@ -44,13 +44,14 @@ function filter() {
 
 // OnClick events
 $w('#less').onClick((event) => {
-    // Opt 1
     let $item = $w.at(event.context);
+    
+    // Opt 1
     const itemId = event.context.itemId;
-    const itemData = $w('#repCartPage').data.find(item => item._id == itemId)
+    const itemData1 = $w('#repCartPage').data.find(item => item._id == itemId)
 
     // Opt 2
-    const eventInfo = categoryRepInfo.find(item => item._id == event.context.itemId);
+    let itemData2 = $w('#patientsRepeater').data.find(item => item._id == event.context.itemId);
 });
 
 //EMAIL

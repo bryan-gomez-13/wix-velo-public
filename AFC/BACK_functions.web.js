@@ -73,6 +73,25 @@ export const getEmail = webMethod(Permissions.Anyone, async (json) => {
     } catch (error) { console.error(error); }
 });
 
+export const getEmailNotifications = webMethod(Permissions.Anyone, async (email) => {
+    try {
+        const queryResults = await contacts.queryContacts().eq('primaryInfo.email', email).find({ suppressAuth: true });
+        if (queryResults.items.length > 0) {
+            return queryResults.items[0]._id
+        } else {
+            const contactInfo = {
+                name: { first: 'Notification Email' },
+                emails: [{ email: email, primary: true }]
+            };
+            const options = { allowDuplicates: false, suppressAuth: true, };
+
+            return contacts.createContact(contactInfo, options)
+                .then((contact) => { return contact._id; })
+                .catch((error) => { console.error(error); });
+        }
+    } catch (error) { console.error(error); }
+});
+
 export const getFileInfo = webMethod(Permissions.Anyone, async (fileUri) => {
     try {
         if (!fileUri) return null;
