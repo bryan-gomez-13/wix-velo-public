@@ -1,55 +1,108 @@
-(function () {
-  if (customElements.get("unicornstudio-wix")) return;
+class UnicornStudioEmbed extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this.scene = null;
+  }
 
-  class UnicornStudioWix extends HTMLElement {
-    connectedCallback() {
-      if (this._mounted) return;
-      this._mounted = true;
+  connectedCallback() {
+    this.initializeUnicornStudio();
+  }
 
-      // 🔹 CONFIGURACIÓN FIJA (edita aquí si quieres)
-      var PROJECT_ID = "ohmse2RtGXKWtXNOL98B";
-      var WIDTH = "100%";
-      var HEIGHT = "100vh";
-
-      // Create container
-      var container = document.createElement("div");
-      container.setAttribute("data-us-project", PROJECT_ID);
-      container.style.width = WIDTH;
-      container.style.height = HEIGHT;
-
-      // Make it behave as background
-      container.style.position = "absolute";
-      container.style.inset = "0";
-      container.style.zIndex = "0";
-
-      this.style.position = "relative";
-      this.style.display = "block";
-      this.style.width = "100%";
-      this.style.height = HEIGHT;
-      this.style.overflow = "hidden";
-
-      this.appendChild(container);
-
-      // Load Unicorn Studio once
-      if (!window.UnicornStudio) {
-        window.UnicornStudio = { isInitialized: false };
-
-        var script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.0.5/dist/unicornStudio.umd.js";
-
-        script.onload = function () {
-          if (window.UnicornStudio && window.UnicornStudio.init) {
-            window.UnicornStudio.init();
-          }
-        };
-
-        (document.head || document.body).appendChild(script);
-      } else if (window.UnicornStudio.init) {
-        window.UnicornStudio.init();
-      }
+  disconnectedCallback() {
+    if (this.scene && typeof this.scene.destroy === "function") {
+      this.scene.destroy();
     }
   }
 
-  customElements.define("unicornstudio-wix", UnicornStudioWix);
-})();
+  loadUnicornStudioScript() {
+    return new Promise((resolve, reject) => {
+      const src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.0.5/dist/unicornStudio.umd.js";
+      const existingScript = document.querySelector(`script[src="${src}"]`);
+
+      if (existingScript) {
+        if (window.UnicornStudio || window.unicornStudio) {
+          resolve();
+        } else {
+          existingScript.addEventListener("load", resolve);
+          existingScript.addEventListener("error", reject);
+        }
+        return;
+      }
+
+      const appendScriptToHead = () => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () => {
+          console.error("Error loading Unicorn Studio script.");
+          reject();
+        };
+        document.head.appendChild(script);
+      };
+
+      if (document.head) {
+        appendScriptToHead();
+      } else {
+        document.addEventListener("DOMContentLoaded", appendScriptToHead);
+      }
+    });
+  }
+
+  initializeUnicornStudio() {
+    this.loadUnicornStudioScript()
+      .then(() => {
+        const US = window.UnicornStudio || window.unicornStudio;
+        if (US && typeof US.addScene === "function") {
+          const projectId = this.getAttribute("project-id");
+          const filePath = this.getAttribute("file-path");
+          const dpi = Number(this.getAttribute("dpi") || 1.5);
+          const scale = Number(this.getAttribute("scale") || 1);
+          const lazyLoad = this.getAttribute("lazy-load") === "true";
+          const altText = this.getAttribute("alt-text") || "Welcome to Unicorn Studio";
+          const ariaLabel = this.getAttribute("aria-label") || "This is a canvas scene";
+
+          if (!projectId && !filePath) {
+            console.error("Missing project-id or file-path for Unicorn Studio scene.");
+            return;
+          }
+
+          const container = document.createElement("div");
+          container.classList.add("unicorn-embed");
+          container.style.width = "100%";
+          container.style.height = "100%";
+          this.shadowRoot.appendChild(container);
+
+          const config = {
+            element: container,
+            dpi,
+            scale,
+            lazyLoad,
+            altText,
+            ariaLabel,
+          };
+
+          if (filePath) {
+            config.filePath = filePath;
+          } else {
+            config.projectId = projectId;
+          }
+
+          US.addScene(config)
+            .then((scene) => {
+              this.scene = scene;
+            })
+            .catch((err) => {
+              console.error("Error loading Unicorn Studio scene:", err);
+            });
+        } else {
+          console.error("Unicorn Studio is not available or addScene is not a function");
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading Unicorn Studio script:", err);
+      });
+  }
+}
+
+customElements.define("unicorn-studio-embed", UnicornStudioEmbed);
