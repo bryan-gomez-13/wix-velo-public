@@ -1,57 +1,55 @@
 (function () {
-    // Avoid redefining the element
-    if (customElements.get("unicornstudio-wix")) return;
+  if (customElements.get("unicornstudio-wix")) return;
 
-    class UnicornStudioWix extends HTMLElement {
-        connectedCallback() {
-            // Prevent double init
-            if (this._initialized) return;
-            this._initialized = true;
+  class UnicornStudioWix extends HTMLElement {
+    connectedCallback() {
+      if (this._mounted) return;
+      this._mounted = true;
 
-            const projectId = this.getAttribute("project-id");
-            const width = this.getAttribute("width") || "1440px";
-            const height = this.getAttribute("height") || "900px";
+      // 🔹 CONFIGURACIÓN FIJA (edita aquí si quieres)
+      var PROJECT_ID = "ohmse2RtGXKWtXNOL98B";
+      var WIDTH = "100%";
+      var HEIGHT = "100vh";
 
-            if (!projectId) {
-                this.innerHTML = "<p style='color:red'>Missing project-id attribute</p>";
-                return;
-            }
+      // Create container
+      var container = document.createElement("div");
+      container.setAttribute("data-us-project", PROJECT_ID);
+      container.style.width = WIDTH;
+      container.style.height = HEIGHT;
 
-            // Create container
-            const container = document.createElement("div");
-            container.setAttribute("data-us-project", projectId);
-            container.style.width = width;
-            container.style.height = height;
+      // Make it behave as background
+      container.style.position = "absolute";
+      container.style.inset = "0";
+      container.style.zIndex = "0";
 
-            this.appendChild(container);
+      this.style.position = "relative";
+      this.style.display = "block";
+      this.style.width = "100%";
+      this.style.height = HEIGHT;
+      this.style.overflow = "hidden";
 
-            // Load UnicornStudio script only once
-            if (!window.UnicornStudio) {
-                window.UnicornStudio = { isInitialized: false };
+      this.appendChild(container);
 
-                const script = document.createElement("script");
-                script.src =
-                    "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.0.5/dist/unicornStudio.umd.js";
+      // Load Unicorn Studio once
+      if (!window.UnicornStudio) {
+        window.UnicornStudio = { isInitialized: false };
 
-                script.onload = () => {
-                    this.initUnicorn();
-                };
+        var script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.0.5/dist/unicornStudio.umd.js";
 
-                (document.head || document.body).appendChild(script);
-            } else {
-                this.initUnicorn();
-            }
-        }
+        script.onload = function () {
+          if (window.UnicornStudio && window.UnicornStudio.init) {
+            window.UnicornStudio.init();
+          }
+        };
 
-        initUnicorn() {
-            if (window.UnicornStudio && window.UnicornStudio.init) {
-                if (!window.UnicornStudio.isInitialized) {
-                    window.UnicornStudio.isInitialized = true;
-                    window.UnicornStudio.init();
-                }
-            }
-        }
+        (document.head || document.body).appendChild(script);
+      } else if (window.UnicornStudio.init) {
+        window.UnicornStudio.init();
+      }
     }
+  }
 
-    customElements.define("unicornstudio-wix", UnicornStudioWix);
+  customElements.define("unicornstudio-wix", UnicornStudioWix);
 })();
