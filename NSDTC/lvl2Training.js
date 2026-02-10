@@ -1,10 +1,17 @@
 import { createMyPayment, appendValuesWrapper } from 'backend/functions.web.js';
-import { generalQuery, saveData, updateCollection } from 'backend/collections.web.js';
+import { generalQuery, saveData, updateCollection, lessOneLvL2 } from 'backend/collections.web.js';
+import { sendEmailNotifications } from 'backend/emails.web.js';
 import wixLocationFrontend from 'wix-location-frontend';
 import wixPayFrontend from "wix-pay-frontend";
 
 let dogsNameCheck = true;
 let lvl2Price, itemLvl2Monday, itemLvl2Tuesday;
+
+var courseIdM = '947f56a4-a236-47b1-a9df-c7f71e170886';
+var courseIdT = '71322720-ea65-4ed6-9163-f1643e4d1f4b';
+var collectionId = 'Level2Training';
+let googleSheet = 'sheetLvL2';
+let courseInfo;
 
 $w.onReady(function () {
     getLvL2Info();
@@ -15,20 +22,31 @@ function init() {
     $w("#form1").onFieldValueChange((newValues) => {
         if (newValues["email_d952"] && dogsNameCheck) {
             generalQuery("Training", "email", newValues["email_d952"]).then((result) => {
-                if (result.items.length > 0) {
+                if (result.length > 0) {
                     dogsNameCheck = false;
-                    $w('#form1').setFieldValues({
-                        dogs_name: result.items[0].dogsName,
-                        dogs_bread: result.items[0].dogsBreed,
-                        dog_lvl_1: true
-                    })
+
+                    let phone = (result[0].phone) ? parseInt(result[0].phone) : '';
+
+                    if (result[0].phone)
+                        $w('#form1').setFieldValues({
+                            dogs_name: result[0].dogsName,
+                            dogs_bread: result[0].dogsBreed,
+                            dog_lvl_1: true,
+                            phone: phone
+                        })
                 }
             })
         }
 
         if (newValues["prefered_day"]) {
             const isMonday = newValues["prefered_day"] === "Monday";
-            const isFull = isMonday ? itemLvl2Monday.numberOfPeople === 0 : itemLvl2Tuesday.numberOfPeople === 0;
+            if (isMonday) {
+                $w('#title').html = itemLvl2Monday.formEnabledMessage;
+            } else {
+                $w('#title').html = itemLvl2Tuesday.formEnabledMessage;
+            }
+
+            const isFull = isMonday ? itemLvl2Monday.remainingSpots <= 0 : itemLvl2Tuesday.remainingSpots <= 0;
             const alternativeDay = isMonday ? "Tuesday" : "Monday";
 
             if (isFull) {
@@ -39,69 +57,111 @@ function init() {
         }
     });
 
-    $w("#form1").onSubmit((event) => {
-        if (event.dog_lvl_1) {
-            getLvL2Info(event.prefered_day);
-            $w('#boxLvl2').changeState("lvl2Pay")
+    $w('#btSubmit').onClick(async () => {
+        const event = $w("#form1").getFieldValues();
 
-            // console.log(event)
-            setTimeout(() => {
-                createMyPayment("Level 2 Training", lvl2Price, event).then((payment) => {
-                    wixPayFrontend.startPayment(payment.id).then(async (result) => {
-                        const status = result.status;
-                        const date = new Date();
-                        const phone = `${event.phone}`
+        // let phone = (event.phone) ? parseInt(event.phone) : '';
+        // if (event.phone) $w('#form1').setFieldValues({ phone: phone })
 
-                        const values = [
-                            date.toDateString(),
-                            event.first_name,
-                            event.last_name,
-                            event.email_d952,
-                            phone,
-                            event.dogs_name,
-                            event.dogs_bread,
-                            event.prefered_day,
-                            "Checked",
-                            status,
-                        ]
+        if (event.first_name !== null && event.last_name !== null && event.email_d952 !== null && event.phone !== null && event.dogs_name !== null && event.dogs_bread !== null && event.prefered_day !== null && event.dog_lvl_1 !== false && event.form_field_0acf !== false) {
+            let courseIdSearch
 
-                        const jsonToSaveLvL2 = {
-                            firstName: event.first_name,
-                            lastName: event.last_name,
-                            email: event.email_d952,
-                            phone: phone,
-                            dogsName: event.dogs_name,
-                            dogsBread: event.dogs_bread,
-                            preferedDay: event.prefered_day,
-                            checkLvl1: "Checked",
-                            paymentStatus: status,
-                        }
+            if (event.prefered_day == 'Monday') {
+                courseIdSearch = courseIdM;
+            } else if (event.prefered_day == 'Tuesday') {
+                courseIdSearch = courseIdT;
+            }
 
-                        if (status == "Successful") {
-                            let item;
-                            if (event.prefered_day == "Monday") {
-                                itemLvl2Monday.numberOfPeople--;
-                                item = itemLvl2Monday;
-                            } else {
-                                itemLvl2Tuesday.numberOfPeople--;
-                                item = itemLvl2Tuesday;
-                            }
+            courseInfo = (await generalQuery('Course', '_id', courseIdSearch))[0];
 
-                            updateCollection("Course", item)
-                        }
+            // If no spots available, disable button and show message
+            if (courseInfo.remainingSpots <= 0) {
+                await getLvL2Info(event.prefered_day);
+                return;
+            }
 
-                        Promise.all([
-                            saveData("Level2Training", jsonToSaveLvL2),
-                            appendValuesWrapper(values, "sheetLvL2"),
-                        ]).then(() => {
-                            wixLocationFrontend.to('/thank-you');
-                        }).catch((error) => {
-                            console.error("Error processing payment data:", error);
-                        });
-                    });
-                });
-            }, 2000);
+            $w("#form1").submit();
+
+            const phone = `${event.phone}`
+            $w('#boxLvl2').changeState("lvl2Pay");
+            $w('#boxLvl2').scrollTo();
+
+            let jsonToSaveLvL2 = {
+                firstName: event.first_name,
+                lastName: event.last_name,
+                email: event.email_d952,
+                phone: phone,
+                dogsName: event.dogs_name,
+                dogsBread: event.dogs_bread,
+                preferedDay: event.prefered_day,
+                checkLvl1: "Checked",
+                cancellationPolicy: "Checked",
+                paymentStatus: "Pending"
+            }
+
+            // Save submission to database
+            let trainingSubmission = await saveData(collectionId, jsonToSaveLvL2);
+
+            // Reduce available spots
+            const status = await lessOneLvL2(courseIdSearch, collectionId, 'payment', event.prefered_day);
+
+            // Create payment session
+            const paymentSession = await createMyPayment(courseInfo.course, parseFloat(courseInfo.price), event);
+
+            // Start Wix payment process
+            const result = await wixPayFrontend.startPayment(paymentSession.id, { showThankYouPage: false });
+            let paymentStatus = "Pending";
+
+            if (result.status === "Successful") {
+                paymentStatus = "Paid";
+                const jsonToEmail = {
+                    firstName: event.first_name,
+                    formName: courseInfo.emailFormName,
+                    termInfo: courseInfo.emailTermInfo,
+                    year: courseInfo.emailYear,
+                    dateOfTheFirstClass: courseInfo.emailDateOfFirstClass,
+                    hour: courseInfo.emailHour,
+                    instructor: courseInfo.emailInstructor,
+                    contactEmail: courseInfo.emailContactEmail
+                }
+
+                await sendEmailNotifications(event.email_d952, jsonToEmail);
+            } else {
+                paymentStatus = result.status;
+                $w('#PayNoT').text = 'Payment Error: There was a problem processing your payment.\nPlease check your details and try again.';
+                setTimeout(() => {
+                    console.log(result.status)
+                }, 2000);
+                // $w('#PayNoT').expand();
+            }
+
+            // Update submission with payment status
+            trainingSubmission.paymentStatus = paymentStatus;
+
+            const sheetValues = [
+                new Date().toDateString(),
+                event.first_name,
+                event.last_name,
+                event.email_d952,
+                phone,
+                event.dogs_name,
+                event.dogs_bread,
+                event.prefered_day,
+                "Checked",
+                "Checked",
+                paymentStatus,
+            ]
+
+            await Promise.all([
+                appendValuesWrapper(sheetValues, googleSheet),
+                updateCollection(collectionId, trainingSubmission)
+            ]);
+
+            wixLocationFrontend.to('/thank-you');
+        } else {
+            $w("#form1").submit();
         }
+
     })
 }
 
@@ -110,15 +170,13 @@ function getLvL2Info(day) {
         generalQuery("Course", "_id", "947f56a4-a236-47b1-a9df-c7f71e170886"),
         generalQuery("Course", "_id", "71322720-ea65-4ed6-9163-f1643e4d1f4b")
     ]).then(([mondayResults, tuesdayResults]) => {
-        itemLvl2Monday = mondayResults.items[0];
-        itemLvl2Tuesday = tuesdayResults.items[0];
+        itemLvl2Monday = mondayResults[0];
+        itemLvl2Tuesday = tuesdayResults[0];
 
         $w('#title').html = itemLvl2Monday.formEnabledMessage;
-        $w('#SubmitNoT').text = itemLvl2Monday.formDisabledMessage;
         $w('#title').expand();
 
         if (itemLvl2Monday.enableForm && itemLvl2Tuesday.enableForm) {
-            $w('#boxLvl2').changeState('lvl2Form');
             if (day) {
                 // Use the same price for both
                 let label = "";
@@ -127,12 +185,20 @@ function getLvL2Info(day) {
 
                 $w('#pricingDetails').text = label;
                 $w('#totalPrice').text = `${lvl2Price}`;
+            } else {
+                $w('#boxLvl2').changeState('lvl2Form');
             }
 
             // Check availability and update UI accordingly
-            checkAvailability(itemLvl2Monday.numberOfPeople, itemLvl2Tuesday.numberOfPeople);
+            checkAvailability(itemLvl2Monday.remainingSpots, itemLvl2Tuesday.remainingSpots);
         } else {
-            $w('#boxLvl2').changeState('lvl2Full')
+            // $w('#section2').collapse();
+            $w('#section3').collapse();
+
+            if (itemLvl2Monday.fullyBookedMessageActive && itemLvl2Monday.fullyBookedMessage) $w('#SubmitNoT').text = itemLvl2Monday.fullyBookedMessage;
+            else $w('#SubmitNoT').text = itemLvl2Monday.formDisabledMessage;
+
+            $w('#boxLvl2').changeState('lvl2Full');
         }
 
     }).catch(error => {
@@ -144,8 +210,10 @@ function getLvL2Info(day) {
 function checkAvailability(mondayPeople, tuesdayPeople) {
     if (mondayPeople <= 0 && tuesdayPeople > 0) {
         updateFullMessage("Monday", "Tuesday");
+        $w('#title').html = itemLvl2Tuesday.formEnabledMessage;
     } else if (tuesdayPeople <= 0 && mondayPeople > 0) {
         updateFullMessage("Tuesday", "Monday");
+        $w('#title').html = itemLvl2Monday.formEnabledMessage;
     } else if (mondayPeople <= 0 && tuesdayPeople <= 0) {
         $w('#boxLvl2').changeState("lvl2Full");
     }

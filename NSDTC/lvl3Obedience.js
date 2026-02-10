@@ -1,6 +1,7 @@
 import { appendValuesWrapper } from 'backend/functions.web.js';
 import { generalQuery, generalQuery_v2, updateCollection, lessOneWixForms } from 'backend/collections.web.js';
 import wixLocationFrontend from 'wix-location-frontend';
+import { sendEmailNotifications } from 'backend/emails.web.js';
 
 let dogsNameCheck = true,
     values;
@@ -47,6 +48,7 @@ function init() {
     })
 
     $w('#btSubmit').onClick(async () => {
+        $w('#btSubmit').disable();
         // Get course info
         const courseInfo = (await generalQuery('Course', '_id', courseId))[0];
 
@@ -73,6 +75,10 @@ function init() {
 
     $w("#form1").onSubmitSuccess(async () => {
         try {
+            $w('#reloadThanks').expand();
+
+            await delay(1500);
+
             // Get course info
             const courseInfo = (await generalQuery('Course', '_id', courseId))[0];
 
@@ -84,19 +90,39 @@ function init() {
                 else $w('#SubmitNoT').text = courseInfo.formDisabledMessage;
 
                 $w('#boxLvl2').changeState('lvl3Full');
-            }
+            } else {
+                const jsonToEmail = {
+                    firstName: values[1],
+                    formName: courseInfo.emailFormName,
+                    termInfo: courseInfo.emailTermInfo,
+                    year: courseInfo.emailYear,
+                    dateOfTheFirstClass: courseInfo.emailDateOfFirstClass,
+                    hour: courseInfo.emailHour,
+                    instructor: courseInfo.emailInstructor,
+                    contactEmail: courseInfo.emailContactEmail
+                }
 
-            // Execute both updates in parallel
-            await Promise.all([
-                lessOneWixForms(courseId, collectionId, 'payment'),
-                appendValuesWrapper(values, googleSheet),
-            ]);
-            wixLocationFrontend.to('/thank-you');
+                await sendEmailNotifications(values[3], jsonToEmail);
+                // Execute both updates in parallel
+                await Promise.all([
+                    lessOneWixForms(courseId, collectionId, 'payment'),
+                    appendValuesWrapper(values, googleSheet),
+                ]);
+                wixLocationFrontend.to('/thank-you');
+            }
 
         } catch (error) {
             console.error("Error processing form submission:", error);
         }
     });
+
+    $w("#form1").onSubmitFailure(() => {
+        $w('#btSubmit').enable();
+    })
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function getLvL3Info() {
